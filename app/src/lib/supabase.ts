@@ -16,9 +16,17 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
+export const supabaseProjectHost = supabaseUrl
+  ? new URL(supabaseUrl).host
+  : null;
+
 export const supabaseConfigError = isSupabaseConfigured
   ? null
   : 'Supabase non configurato. Imposta VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (in locale: app/.env — su Vercel: Settings → Environment Variables, poi Redeploy).';
+
+export const isWrongSupabaseProject =
+  supabaseProjectHost !== null &&
+  supabaseProjectHost.includes('zcgynarwbouaaamioegr');
 
 let client: SupabaseClient<Database> | null = null;
 

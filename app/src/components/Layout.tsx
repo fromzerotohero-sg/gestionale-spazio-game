@@ -4,7 +4,12 @@ import { motion } from 'framer-motion';
 import { Search, Bell, Settings } from 'lucide-react';
 import Navbar from './Navbar';
 import Footer from './Footer';
-import { isSupabaseConfigured, supabaseConfigError } from '@/lib/supabase';
+import {
+  isSupabaseConfigured,
+  isWrongSupabaseProject,
+  supabaseConfigError,
+  supabaseProjectHost,
+} from '@/lib/supabase';
 
 const routeNames: Record<string, { title: string; breadcrumb: string }> = {
   '/': { title: 'Dashboard', breadcrumb: 'Dashboard' },
@@ -70,6 +75,15 @@ export default function Layout({ children }: LayoutProps) {
               className="mb-6 rounded-lg border border-status-arancione/40 bg-status-arancione/10 px-4 py-3 text-sm text-status-arancione"
             >
               {supabaseConfigError}
+            </div>
+          )}
+          {isWrongSupabaseProject && (
+            <div
+              role="alert"
+              className="mb-6 rounded-lg border border-status-rosso/40 bg-status-rosso/10 px-4 py-3 text-sm text-status-rosso"
+            >
+              Progetto Supabase errato ({supabaseProjectHost}). Usa zewzttibcvuowskykega.supabase.co e la
+              relativa anon key, poi Redeploy su Vercel.
             </div>
           )}
           {children}

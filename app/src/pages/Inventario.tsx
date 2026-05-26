@@ -760,7 +760,10 @@ export default function Inventario() {
         <p className="font-heading-3 text-status-rosso">Errore connessione database</p>
         <p className="font-body-small text-text-muted">{(error as Error).message}</p>
         <p className="font-caption text-text-muted">
-          Locale: app/.env — Produzione Vercel: Settings → Environment Variables, poi Redeploy (senza cache).
+          Progetto atteso: zewzttibcvuowskykega.supabase.co — se vedi zcgynarwbouaaamioegr, aggiorna le variabili Vercel e rifai deploy.
+        </p>
+        <p className="font-caption text-text-muted">
+          401 = chiave anon sbagliata o non dello stesso progetto dell&apos;URL.
         </p>
       </div>
     );
