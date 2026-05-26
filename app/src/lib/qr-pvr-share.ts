@@ -18,36 +18,48 @@ export function buildQrPvrReopenHash(params: {
   return q ? `#/qr-pvr?${q}` : '#/qr-pvr';
 }
 
-export function buildQrPvrShareText(params: {
+/** Testo per cliente: referral, PVR, vantaggi — senza link al gestionale. */
+export function buildClientShareText(params: {
   refLink: string;
   pvrName: string;
   siteText: string;
   benefits: string;
-  reopenUrl: string;
 }): string {
   const lines = [
-    'Poster QR PVR — Spazio Games',
+    'Ciao,',
+    'ti invio il poster con QR per il punto vendita.',
     '',
-    'Referral (contenuto del QR):',
+    'Link di registrazione / referral (codificato nel QR):',
     params.refLink.trim() || '(non impostato)',
     '',
     'PVR di riferimento:',
     params.pvrName.trim() || '(non impostato)',
   ];
   if (params.siteText.trim()) {
-    lines.push('', 'Testo footer:', params.siteText.trim());
+    lines.push('', 'Sito / footer poster:', params.siteText.trim());
   }
   if (params.benefits.trim()) {
-    lines.push('', 'Vantaggi:', params.benefits.trim());
+    lines.push('', 'Vantaggi sul poster:', params.benefits.trim());
   }
-  lines.push(
-    '',
-    'Riapri questi dati nel gestionale:',
-    params.reopenUrl,
-    '',
-    'Per il poster in immagine: apri il link sopra (o il gestionale → QR PVR) e usa «Scarica come immagine», poi allega il PNG qui su WhatsApp o in email.'
-  );
+  lines.push('', 'Il poster completo è il file immagine in allegato (PNG).');
   return lines.join('\n');
+}
+
+/** Messaggio breve se non si può allegare il file (es. WhatsApp da PC dopo solo download). */
+export function buildClientShortFallbackText(params: {
+  refLink: string;
+  pvrName: string;
+  filename: string;
+}): string {
+  return [
+    'Ciao,',
+    'ti invio il poster QR per il punto vendita.',
+    '',
+    `PVR: ${params.pvrName.trim() || '—'}`,
+    `Link referral (nel QR): ${params.refLink.trim() || '—'}`,
+    '',
+    `Allega in questa chat il file immagine "${params.filename}" (appena salvato nella cartella Download).`,
+  ].join('\n');
 }
 
 export function buildWhatsAppUrl(phoneDigits: string | undefined, message: string): string {
@@ -66,4 +78,11 @@ export function buildMailtoUrl(to: string | undefined, subject: string, body: st
   const query = params.toString();
   const addr = (to ?? '').trim();
   return addr ? `mailto:${addr}?${query}` : `mailto:?${query}`;
+}
+
+export function triggerPngDownload(dataUrl: string, filename: string): void {
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = dataUrl;
+  a.click();
 }
