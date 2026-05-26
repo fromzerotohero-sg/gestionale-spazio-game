@@ -58,39 +58,16 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
+import { type Category, type Sede, SEDI } from '@/data/inventory';
 import {
-  type Category,
-  type Sede,
-  type BaseItem,
-  type MonitorItem,
-  schedeData,
-  cabinetData,
-  cambiaMoneteData,
-  accessoriData,
-  monitorData,
-  categoryTotals,
-  SEDI,
-} from '@/data/inventory';
-
-// ─── Types ─────────────────────────────────────────────────
-interface UnifiedItem {
-  id: string;
-  nome: string;
-  categoria: Category;
-  quantita: number;
-  prezzoUnitario: number;
-  totale: number;
-  note: string;
-  sede: string;
-  // Monitor fields
-  tipo?: string;
-  modello?: string;
-  marca?: string;
-  scaffale?: number;
-  ripiano?: number;
-  bancale?: string;
-  grado?: string;
-}
+  useCreateInventoryItem,
+  useDeleteInventoryItems,
+  useInventoryItems,
+  useUpdateInventoryItem,
+} from '@/hooks/use-inventory';
+import { nextInventoryId } from '@/lib/inventory-api';
+import type { UnifiedItem } from '@/types/inventory';
+import { Spinner } from '@/components/ui/spinner';
 
 type EditingCell = { rowId: string; columnId: string } | null;
 
@@ -112,52 +89,6 @@ const rowVariant = {
   animate: { opacity: 1, x: 0 },
   exit: { opacity: 0, x: 8, transition: { duration: 0.15 } },
 };
-
-// ─── Helpers ───────────────────────────────────────────────
-function toUnified(items: BaseItem[], categoria: Category): UnifiedItem[] {
-  return items.map((i) => ({
-    ...i,
-    categoria,
-    totale: i.quantita * i.prezzoUnitario,
-  }));
-}
-
-function monitorsToUnified(items: MonitorItem[]): UnifiedItem[] {
-  return items.map((i) => ({
-    id: i.id,
-    nome: `${i.marca} ${i.modello}`,
-    categoria: 'monitor' as Category,
-    quantita: i.quantita,
-    prezzoUnitario: i.prezzo,
-    totale: i.quantita * i.prezzo,
-    note: '',
-    sede: 'Magazzino Principale',
-    tipo: i.tipo,
-    modello: i.modello,
-    marca: i.marca,
-    scaffale: i.scaffale,
-    ripiano: i.ripiano,
-    bancale: i.bancale,
-    grado: i.grado,
-  }));
-}
-
-const ALL_DATA: UnifiedItem[] = [
-  ...toUnified(schedeData, 'schede'),
-  ...toUnified(cabinetData, 'cabinet'),
-  ...toUnified(cambiaMoneteData, 'cambiamonete'),
-  ...toUnified(accessoriData, 'accessori'),
-  ...monitorsToUnified(monitorData),
-];
-
-const TABS: { key: Category | 'tutti'; label: string; icon: typeof Cpu; count: number; value: number }[] = [
-  { key: 'tutti', label: 'Tutti', icon: Grid2x2, count: ALL_DATA.length, value: Object.values(categoryTotals).reduce((s, c) => s + c.value, 0) },
-  { key: 'schede', label: 'Schede', icon: Cpu, count: categoryTotals.schede.count, value: categoryTotals.schede.value },
-  { key: 'cabinet', label: 'Cabinet', icon: Box, count: categoryTotals.cabinet.count, value: categoryTotals.cabinet.value },
-  { key: 'cambiamonete', label: 'Cambia Monete', icon: Banknote, count: categoryTotals.cambiamonete.count, value: categoryTotals.cambiamonete.value },
-  { key: 'accessori', label: 'Accessori', icon: Puzzle, count: categoryTotals.accessori.count, value: categoryTotals.accessori.value },
-  { key: 'monitor', label: 'Monitor', icon: MonitorIcon, count: categoryTotals.monitor.count, value: categoryTotals.monitor.value },
-];
 
 const SEDE_COLORS: Record<string, string> = {
   'Magazzino Principale': 'bg-status-blu/15 text-status-blu border-status-blu/30',
@@ -278,16 +209,35 @@ export default function Inventario() {
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColMenu, setShowColMenu] = useState(false);
 
-  // Data state (mutable for CRUD)
-  const [items, setItems] = useState<UnifiedItem[]>(ALL_DATA);
+  const { data: items = [], isLoading, isError, error } = useInventoryItems();
+  const createItem = useCreateInventoryItem();
+  const updateItem = useUpdateInventoryItem();
+  const deleteItems = useDeleteInventoryItems();
+
+  const tabs = useMemo(() => {
+    const sum = (cat?: Category) =>
+      items
+        .filter((i) => !cat || i.categoria === cat)
+        .reduce((s, i) => s + i.totale, 0);
+    const count = (cat?: Category) =>
+      items.filter((i) => !cat || i.categoria === cat).length;
+    return [
+      { key: 'tutti' as const, label: 'Tutti', icon: Grid2x2, count: count(), value: sum() },
+      { key: 'schede' as const, label: 'Schede', icon: Cpu, count: count('schede'), value: sum('schede') },
+      { key: 'cabinet' as const, label: 'Cabinet', icon: Box, count: count('cabinet'), value: sum('cabinet') },
+      { key: 'cambiamonete' as const, label: 'Cambia Monete', icon: Banknote, count: count('cambiamonete'), value: sum('cambiamonete') },
+      { key: 'accessori' as const, label: 'Accessori', icon: Puzzle, count: count('accessori'), value: sum('accessori') },
+      { key: 'monitor' as const, label: 'Monitor', icon: MonitorIcon, count: count('monitor'), value: sum('monitor') },
+    ];
+  }, [items]);
 
   // Sync tab with URL
   useEffect(() => {
     const t = searchParams.get('categoria') as Category | 'tutti' | null;
-    if (t && TABS.find((tab) => tab.key === t)) {
+    if (t && tabs.find((tab) => tab.key === t)) {
       setActiveTab(t);
     }
-  }, [searchParams]);
+  }, [searchParams, tabs]);
 
   const handleTabChange = useCallback((tab: Category | 'tutti') => {
     setActiveTab(tab);
@@ -421,12 +371,14 @@ export default function Inventario() {
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={() => {
                     const num = parseInt(editValue);
-                    if (!isNaN(num) && num >= 0) {
-                      const newItems = items.map((it) =>
-                        it.id === row.original.id ? { ...it, quantita: num, totale: num * it.prezzoUnitario } : it
+                    if (!isNaN(num) && num >= 0 && num !== val) {
+                      updateItem.mutate(
+                        { id: row.original.id, patch: { quantita: num } },
+                        {
+                          onSuccess: () => toast.success('Quantita aggiornata'),
+                          onError: () => toast.error('Errore aggiornamento quantita'),
+                        }
                       );
-                      setItems(newItems);
-                      toast.success('Quantita aggiornata');
                     }
                     setEditingCell(null);
                   }}
@@ -476,12 +428,14 @@ export default function Inventario() {
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={() => {
                     const num = parseFloat(editValue);
-                    if (!isNaN(num) && num >= 0) {
-                      const newItems = items.map((it) =>
-                        it.id === row.original.id ? { ...it, prezzoUnitario: num, totale: it.quantita * num } : it
+                    if (!isNaN(num) && num >= 0 && num !== val) {
+                      updateItem.mutate(
+                        { id: row.original.id, patch: { prezzoUnitario: num } },
+                        {
+                          onSuccess: () => toast.success('Prezzo aggiornato'),
+                          onError: () => toast.error('Errore aggiornamento prezzo'),
+                        }
                       );
-                      setItems(newItems);
-                      toast.success('Prezzo aggiornato');
                     }
                     setEditingCell(null);
                   }}
@@ -518,7 +472,7 @@ export default function Inventario() {
     ];
 
     return cols;
-  }, [colH, editingCell, items, editValue]);
+  }, [colH, editingCell, items, editValue, updateItem]);
 
   // Monitor-specific columns
   const monitorExtraCols = useMemo(() => [
@@ -676,20 +630,27 @@ export default function Inventario() {
   }
 
   function handleDelete() {
-    if (itemToDelete) {
-      setItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
-      toast.success(`'${itemToDelete.nome}' eliminato`);
-      setDeleteDialogOpen(false);
-      setItemToDelete(null);
-    }
+    if (!itemToDelete) return;
+    deleteItems.mutate([itemToDelete.id], {
+      onSuccess: () => {
+        toast.success(`'${itemToDelete.nome}' eliminato`);
+        setDeleteDialogOpen(false);
+        setItemToDelete(null);
+      },
+      onError: () => toast.error('Errore durante eliminazione'),
+    });
   }
 
   function handleBulkDelete() {
     const selectedIds = selectedRows.map((r) => r.original.id);
-    setItems((prev) => prev.filter((i) => !selectedIds.includes(i.id)));
-    toast.success(`${selectedIds.length} articoli eliminati`);
-    setBulkDeleteOpen(false);
-    setRowSelection({});
+    deleteItems.mutate(selectedIds, {
+      onSuccess: () => {
+        toast.success(`${selectedIds.length} articoli eliminati`);
+        setBulkDeleteOpen(false);
+        setRowSelection({});
+      },
+      onError: () => toast.error('Errore durante eliminazione multipla'),
+    });
   }
 
   function handleSaveItem(formData: FormData) {
@@ -699,67 +660,71 @@ export default function Inventario() {
     const note = formData.get('note') as string;
     const sede = formData.get('sede') as Sede;
 
+    const onDone = () => {
+      setItemModalOpen(false);
+      setEditingItem(null);
+    };
+
     if (editingItem) {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === editingItem.id
-            ? {
-                ...i,
-                nome,
-                quantita,
-                prezzoUnitario: prezzo,
-                totale: quantita * prezzo,
-                note,
-                sede,
-                tipo: formData.get('tipo') as string || i.tipo,
-                modello: formData.get('modello') as string || i.modello,
-                marca: formData.get('marca') as string || i.marca,
-                grado: (formData.get('grado') as string) || i.grado,
-                scaffale: Number(formData.get('scaffale')) || i.scaffale,
-                ripiano: Number(formData.get('ripiano')) || i.ripiano,
-                bancale: (formData.get('bancale') as string) || i.bancale,
-              }
-            : i
-        )
+      updateItem.mutate(
+        {
+          id: editingItem.id,
+          patch: {
+            nome,
+            quantita,
+            prezzoUnitario: prezzo,
+            note,
+            sede,
+            tipo: (formData.get('tipo') as string) || editingItem.tipo,
+            modello: (formData.get('modello') as string) || editingItem.modello,
+            marca: (formData.get('marca') as string) || editingItem.marca,
+            grado: (formData.get('grado') as string) || editingItem.grado,
+            scaffale: Number(formData.get('scaffale')) || editingItem.scaffale,
+            ripiano: Number(formData.get('ripiano')) || editingItem.ripiano,
+            bancale: (formData.get('bancale') as string) || editingItem.bancale,
+          },
+        },
+        {
+          onSuccess: () => {
+            toast.success('Articolo aggiornato');
+            onDone();
+          },
+          onError: () => toast.error('Errore aggiornamento articolo'),
+        }
       );
-      toast.success('Articolo aggiornato');
     } else {
       const cat = activeTab === 'tutti' ? 'schede' : (activeTab as Category);
-      const prefix = { schede: 'SC', cabinet: 'CB', cambiamonete: 'CM', accessori: 'AC', monitor: 'MN' }[cat];
-      const maxNum = items
-        .filter((i) => i.categoria === cat)
-        .reduce((max, i) => {
-          const num = parseInt(i.id.split('-')[1]);
-          return num > max ? num : max;
-        }, 0);
-      const newId = `${prefix}-${String(maxNum + 1).padStart(3, '0')}`;
-
-      const newItem: UnifiedItem = {
-        id: newId,
-        nome,
-        categoria: cat,
-        quantita,
-        prezzoUnitario: prezzo,
-        totale: quantita * prezzo,
-        note,
-        sede: sede || 'Magazzino Principale',
-      };
-
-      if (cat === 'monitor') {
-        newItem.tipo = (formData.get('tipo') as string) || 'LED19';
-        newItem.modello = (formData.get('modello') as string) || '';
-        newItem.marca = (formData.get('marca') as string) || '';
-        newItem.grado = (formData.get('grado') as string) || 'A';
-        newItem.scaffale = Number(formData.get('scaffale')) || 1;
-        newItem.ripiano = Number(formData.get('ripiano')) || 1;
-        newItem.bancale = (formData.get('bancale') as string) || 'A';
-      }
-
-      setItems((prev) => [newItem, ...prev]);
-      toast.success('Articolo creato');
+      const newId = nextInventoryId(items, cat);
+      createItem.mutate(
+        {
+          id: newId,
+          categoria: cat,
+          nome,
+          quantita,
+          prezzoUnitario: prezzo,
+          note,
+          sede: sede || 'Magazzino Principale',
+          ...(cat === 'monitor'
+            ? {
+                tipo: (formData.get('tipo') as string) || 'LED19',
+                modello: (formData.get('modello') as string) || '',
+                marca: (formData.get('marca') as string) || '',
+                grado: (formData.get('grado') as string) || 'A',
+                scaffale: Number(formData.get('scaffale')) || 1,
+                ripiano: Number(formData.get('ripiano')) || 1,
+                bancale: (formData.get('bancale') as string) || 'A',
+              }
+            : {}),
+        },
+        {
+          onSuccess: () => {
+            toast.success('Articolo creato');
+            onDone();
+          },
+          onError: () => toast.error('Errore creazione articolo'),
+        }
+      );
     }
-    setItemModalOpen(false);
-    setEditingItem(null);
   }
 
   function resetFilters() {
@@ -779,6 +744,27 @@ export default function Inventario() {
     activeTab === 'cabinet' ? 'Cabinet' :
     activeTab === 'cambiamonete' ? 'Cambia Monete' :
     activeTab === 'accessori' ? 'Accessori' : 'Monitor';
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <Spinner className="size-8 text-accent-primary" />
+        <p className="font-body text-text-muted">Caricamento inventario da Supabase...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3 text-center max-w-md mx-auto">
+        <p className="font-heading-3 text-status-rosso">Errore connessione database</p>
+        <p className="font-body-small text-text-muted">{(error as Error).message}</p>
+        <p className="font-caption text-text-muted">
+          Verifica VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY in app/.env
+        </p>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -819,7 +805,7 @@ export default function Inventario() {
       <motion.div {...fadeInUp} transition={{ ...fadeInUp.transition, delay: 0.05 }}>
         <div className="border-b border-border-subtle">
           <div className="flex gap-1">
-            {TABS.map((tab, i) => {
+            {tabs.map((tab, i) => {
               const isActive = activeTab === tab.key;
               const Icon = tab.icon;
               return (

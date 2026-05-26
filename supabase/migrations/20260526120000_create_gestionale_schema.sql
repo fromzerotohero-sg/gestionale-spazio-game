@@ -1,0 +1,2 @@
+-- Gestionale Spazio Games (applied via Supabase MCP)
+-- See supabase/README.md

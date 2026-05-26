@@ -1,10 +1,22 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+})
+
 createRoot(document.getElementById('root')!).render(
-  <HashRouter>
-    <App />
-  </HashRouter>,
+  <QueryClientProvider client={queryClient}>
+    <HashRouter>
+      <App />
+    </HashRouter>
+  </QueryClientProvider>,
 )
