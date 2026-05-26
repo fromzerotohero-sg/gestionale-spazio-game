@@ -8,7 +8,8 @@
 
 | Tabella | Uso |
 |---------|-----|
-| `inventory_items` | Inventario (5 categorie) — **collegato all'app** |
+| `inventory_items` | Inventario (5 categorie) — **collegato all'app** (`last_modified_by`, `updated_at`) |
+| `inventory_activity` | Storico prelievi/modifiche per articolo e operatore |
 | `repairs` | Riparazioni (pronto per integrazione) |
 | `documents` | Modulistica + bucket `gestionale-documents` |
 | `support_tickets` | Ticket supporto |
@@ -20,6 +21,8 @@ Progetto dedicato al gestionale Spazio Games (org. gestionale Spazio Game).
 
 1. `create_gestionale_schema`
 2. `seed_inventory_items` (96 articoli)
+3. `add_monitor_grado_c`
+4. `inventory_tracking_operators` — operatori: Giangrossi, Irene, Matteo, Paolo
 
 ## Rigenerare seed SQL
 

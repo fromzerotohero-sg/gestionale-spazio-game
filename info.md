@@ -139,7 +139,7 @@ Monitor con dettaglio scaffalatura e posizione.
 
 ## Note sul Funzionamento
 - Ogni articolo ha: nome, quantità, prezzo unitario, totale, note
-- I monitor hanno campi aggiuntivi: tipo, modello, marca, scaffalatura, ripiano, bancale, grado (A/B)
+- I monitor hanno campi aggiuntivi: tipo, modello, marca, scaffalatura, ripiano, bancale, grado (A/B/C)
 - Ci sono riferimenti a sedi (LIMENA, magazzino Angelo, filliale di Limena)
 - Ci sono note operative (DDT, fatturazione, ricambi, etc.)
 - Data aggiornamento inventario: 31/12/2025

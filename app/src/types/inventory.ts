@@ -1,4 +1,5 @@
 import type { Category, Sede } from '@/data/inventory';
+import type { Operatore } from '@/data/operators';
 
 export interface UnifiedItem {
   id: string;
@@ -16,6 +17,8 @@ export interface UnifiedItem {
   ripiano?: number;
   bancale?: string;
   grado?: string;
+  updatedAt?: string;
+  lastModifiedBy?: Operatore;
 }
 
 export type InventoryRowInput = {

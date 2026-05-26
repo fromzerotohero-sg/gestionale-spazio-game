@@ -35,6 +35,9 @@ import {
   Grid2x2,
   Eye,
   EyeOff,
+  User,
+  Clock,
+  AlertCircle,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -58,7 +61,14 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
-import { type Category, type Sede, SEDI } from '@/data/inventory';
+import { type Category, type Sede, GRADI, SEDI } from '@/data/inventory';
+import { OPERATORS, getStoredOperatore, setStoredOperatore, type Operatore } from '@/data/operators';
+import {
+  formatAbsoluteDateTime,
+  formatRelativeTime,
+  inventoryUpdateToast,
+  resolveQuantityAction,
+} from '@/lib/inventory-tracking';
 import {
   useCreateInventoryItem,
   useDeleteInventoryItems,
@@ -97,8 +107,9 @@ const SEDE_COLORS: Record<string, string> = {
 };
 
 const GRADO_COLORS: Record<string, string> = {
-  'A': 'bg-status-verde/15 text-status-verde border-status-verde/30',
-  'B': 'bg-status-giallo/15 text-status-giallo border-status-giallo/30',
+  A: 'bg-status-verde/15 text-status-verde border-status-verde/30',
+  B: 'bg-status-giallo/15 text-status-giallo border-status-giallo/30',
+  C: 'bg-status-rosso/15 text-status-rosso border-status-rosso/30',
 };
 
 // ─── Sede Badge ────────────────────────────────────────────
@@ -161,6 +172,23 @@ function exportToCSV(items: UnifiedItem[], filename: string) {
   toast.success('Esportazione completata');
 }
 
+function LastModifiedCell({ item }: { item: UnifiedItem }) {
+  if (!item.updatedAt) {
+    return <span className="font-caption text-text-muted">Mai aggiornato</span>;
+  }
+  return (
+    <div className="flex flex-col gap-0.5" title={formatAbsoluteDateTime(item.updatedAt)}>
+      <span className="inline-flex items-center gap-1 font-caption text-text-secondary">
+        <Clock size={11} className="text-text-muted shrink-0" />
+        {formatRelativeTime(item.updatedAt)}
+      </span>
+      <span className="font-caption text-text-muted truncate max-w-[130px]">
+        {item.lastModifiedBy ?? 'Operatore non registrato'}
+      </span>
+    </div>
+  );
+}
+
 // ─── Status Badge ──────────────────────────────────────────
 function StatusBadge({ label, variant }: { label: string; variant: 'sede' | 'grado' | 'tipo' }) {
   if (variant === 'sede') return <SedeBadge sede={label} />;
@@ -208,11 +236,22 @@ export default function Inventario() {
   // Column visibility
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColMenu, setShowColMenu] = useState(false);
+  const [operatore, setOperatore] = useState<Operatore | null>(() => getStoredOperatore());
 
   const { data: items = [], isLoading, isError, error } = useInventoryItems();
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
   const deleteItems = useDeleteInventoryItems();
+
+  useEffect(() => {
+    if (operatore) setStoredOperatore(operatore);
+  }, [operatore]);
+
+  function requireOperatore(): Operatore | null {
+    if (operatore) return operatore;
+    toast.error('Seleziona il tuo nome in alto prima di modificare l\'inventario', { duration: 5000 });
+    return null;
+  }
 
   const tabs = useMemo(() => {
     const sum = (cat?: Category) =>
@@ -371,11 +410,20 @@ export default function Inventario() {
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={() => {
                     const num = parseInt(editValue);
+                    const op = requireOperatore();
+                    if (!op) {
+                      setEditingCell(null);
+                      return;
+                    }
                     if (!isNaN(num) && num >= 0 && num !== val) {
+                      const previous = row.original;
                       updateItem.mutate(
-                        { id: row.original.id, patch: { quantita: num } },
+                        { id: previous.id, patch: { quantita: num }, operatore: op, previous },
                         {
-                          onSuccess: () => toast.success('Quantita aggiornata'),
+                          onSuccess: (data) => {
+                            const action = resolveQuantityAction(previous.quantita, num);
+                            toast.success(inventoryUpdateToast(op, data, action), { duration: 5000 });
+                          },
                           onError: () => toast.error('Errore aggiornamento quantita'),
                         }
                       );
@@ -428,11 +476,17 @@ export default function Inventario() {
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={() => {
                     const num = parseFloat(editValue);
+                    const op = requireOperatore();
+                    if (!op) {
+                      setEditingCell(null);
+                      return;
+                    }
                     if (!isNaN(num) && num >= 0 && num !== val) {
+                      const previous = row.original;
                       updateItem.mutate(
-                        { id: row.original.id, patch: { prezzoUnitario: num } },
+                        { id: previous.id, patch: { prezzoUnitario: num }, operatore: op, previous },
                         {
-                          onSuccess: () => toast.success('Prezzo aggiornato'),
+                          onSuccess: (data) => toast.success(inventoryUpdateToast(op, data), { duration: 5000 }),
                           onError: () => toast.error('Errore aggiornamento prezzo'),
                         }
                       );
@@ -534,6 +588,18 @@ export default function Inventario() {
     })
   , [colH]);
 
+  const lastModifiedColumn = useMemo(
+    () =>
+      colH.display({
+        id: 'ultimoAggiornamento',
+        header: 'Ultimo agg.',
+        cell: ({ row }) => <LastModifiedCell item={row.original} />,
+        size: 150,
+        enableSorting: false,
+      }),
+    [colH]
+  );
+
   const actionsColumn = useMemo(() =>
     colH.display({
       id: 'actions',
@@ -587,12 +653,13 @@ export default function Inventario() {
         monitorExtraCols[4], // ripiano
         monitorExtraCols[5], // bancale
         monitorExtraCols[6], // grado
+        lastModifiedColumn,
         actionsColumn,
       ];
     }
 
-    return [...baseColumns, noteColumn, sedeColumn, actionsColumn];
-  }, [activeTab, baseColumns, monitorExtraCols, noteColumn, sedeColumn, actionsColumn]);
+    return [...baseColumns, noteColumn, sedeColumn, lastModifiedColumn, actionsColumn];
+  }, [activeTab, baseColumns, monitorExtraCols, noteColumn, sedeColumn, lastModifiedColumn, actionsColumn]);
 
   // ─── Table instance ──────────────────────────────────────
   const table = useReactTable({
@@ -615,11 +682,13 @@ export default function Inventario() {
 
   // ─── CRUD handlers ───────────────────────────────────────
   function openAddModal() {
+    if (!requireOperatore()) return;
     setEditingItem(null);
     setItemModalOpen(true);
   }
 
   function openEditModal(item: UnifiedItem) {
+    if (!requireOperatore()) return;
     setEditingItem(item);
     setItemModalOpen(true);
   }
@@ -631,29 +700,42 @@ export default function Inventario() {
 
   function handleDelete() {
     if (!itemToDelete) return;
-    deleteItems.mutate([itemToDelete.id], {
-      onSuccess: () => {
-        toast.success(`'${itemToDelete.nome}' eliminato`);
-        setDeleteDialogOpen(false);
-        setItemToDelete(null);
-      },
-      onError: () => toast.error('Errore durante eliminazione'),
-    });
+    const op = requireOperatore();
+    if (!op) return;
+    deleteItems.mutate(
+      { ids: [itemToDelete.id], operatore: op, items: [itemToDelete] },
+      {
+        onSuccess: () => {
+          toast.success(`Eliminazione registrata · ${op} · '${itemToDelete.nome}'`, { duration: 5000 });
+          setDeleteDialogOpen(false);
+          setItemToDelete(null);
+        },
+        onError: () => toast.error('Errore durante eliminazione'),
+      }
+    );
   }
 
   function handleBulkDelete() {
+    const op = requireOperatore();
+    if (!op) return;
     const selectedIds = selectedRows.map((r) => r.original.id);
-    deleteItems.mutate(selectedIds, {
-      onSuccess: () => {
-        toast.success(`${selectedIds.length} articoli eliminati`);
-        setBulkDeleteOpen(false);
-        setRowSelection({});
-      },
-      onError: () => toast.error('Errore durante eliminazione multipla'),
-    });
+    const selectedItems = selectedRows.map((r) => r.original);
+    deleteItems.mutate(
+      { ids: selectedIds, operatore: op, items: selectedItems },
+      {
+        onSuccess: () => {
+          toast.success(`Eliminazione registrata · ${op} · ${selectedIds.length} articoli`, { duration: 5000 });
+          setBulkDeleteOpen(false);
+          setRowSelection({});
+        },
+        onError: () => toast.error('Errore durante eliminazione multipla'),
+      }
+    );
   }
 
   function handleSaveItem(formData: FormData) {
+    const op = requireOperatore();
+    if (!op) return;
     const nome = formData.get('nome') as string;
     const quantita = Number(formData.get('quantita'));
     const prezzo = Number(formData.get('prezzo'));
@@ -666,9 +748,12 @@ export default function Inventario() {
     };
 
     if (editingItem) {
+      const previous = editingItem;
       updateItem.mutate(
         {
           id: editingItem.id,
+          operatore: op,
+          previous,
           patch: {
             nome,
             quantita,
@@ -685,8 +770,9 @@ export default function Inventario() {
           },
         },
         {
-          onSuccess: () => {
-            toast.success('Articolo aggiornato');
+          onSuccess: (data) => {
+            const action = resolveQuantityAction(previous.quantita, quantita);
+            toast.success(inventoryUpdateToast(op, data, action), { duration: 5000 });
             onDone();
           },
           onError: () => toast.error('Errore aggiornamento articolo'),
@@ -697,28 +783,31 @@ export default function Inventario() {
       const newId = nextInventoryId(items, cat);
       createItem.mutate(
         {
-          id: newId,
-          categoria: cat,
-          nome,
-          quantita,
-          prezzoUnitario: prezzo,
-          note,
-          sede: sede || 'Magazzino Principale',
-          ...(cat === 'monitor'
-            ? {
-                tipo: (formData.get('tipo') as string) || 'LED19',
-                modello: (formData.get('modello') as string) || '',
-                marca: (formData.get('marca') as string) || '',
-                grado: (formData.get('grado') as string) || 'A',
-                scaffale: Number(formData.get('scaffale')) || 1,
-                ripiano: Number(formData.get('ripiano')) || 1,
-                bancale: (formData.get('bancale') as string) || 'A',
-              }
-            : {}),
+          operatore: op,
+          item: {
+            id: newId,
+            categoria: cat,
+            nome,
+            quantita,
+            prezzoUnitario: prezzo,
+            note,
+            sede: sede || 'Magazzino Principale',
+            ...(cat === 'monitor'
+              ? {
+                  tipo: (formData.get('tipo') as string) || 'LED19',
+                  modello: (formData.get('modello') as string) || '',
+                  marca: (formData.get('marca') as string) || '',
+                  grado: (formData.get('grado') as string) || 'A',
+                  scaffale: Number(formData.get('scaffale')) || 1,
+                  ripiano: Number(formData.get('ripiano')) || 1,
+                  bancale: (formData.get('bancale') as string) || 'A',
+                }
+              : {}),
+          },
         },
         {
-          onSuccess: () => {
-            toast.success('Articolo creato');
+          onSuccess: (data) => {
+            toast.success(inventoryUpdateToast(op, data, 'creazione'), { duration: 5000 });
             onDone();
           },
           onError: () => toast.error('Errore creazione articolo'),
@@ -804,6 +893,21 @@ export default function Inventario() {
         </motion.div>
       </motion.div>
 
+      {!operatore && (
+        <motion.div
+          {...fadeInUp}
+          className="flex items-start gap-3 rounded-xl border border-status-arancione/40 bg-status-arancione/10 px-4 py-3"
+        >
+          <AlertCircle size={20} className="text-status-arancione shrink-0 mt-0.5" />
+          <div>
+            <p className="font-body text-status-arancione font-medium">Seleziona chi sta operando</p>
+            <p className="font-body-small text-text-secondary mt-0.5">
+              Ogni modifica o prelievo viene registrato con nome e orario, così il responsabile vede l&apos;ultimo aggiornamento di ogni articolo.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* ═══ Category Tabs ═══ */}
       <motion.div {...fadeInUp} transition={{ ...fadeInUp.transition, delay: 0.05 }}>
         <div className="border-b border-border-subtle">
@@ -851,6 +955,33 @@ export default function Inventario() {
         transition={{ ...fadeInUp.transition, delay: 0.1 }}
         className="flex flex-wrap items-center gap-3 bg-bg-elevated border border-border-subtle rounded-xl p-3"
       >
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-lg border px-3 h-9 shrink-0',
+            operatore
+              ? 'border-border-default bg-bg-surface'
+              : 'border-status-arancione/50 bg-status-arancione/10'
+          )}
+        >
+          <User size={16} className={operatore ? 'text-text-muted' : 'text-status-arancione'} />
+          <select
+            value={operatore ?? ''}
+            onChange={(e) => {
+              const value = e.target.value;
+              setOperatore(value ? (value as Operatore) : null);
+            }}
+            className="bg-transparent text-sm text-text-primary focus:outline-none min-w-[120px]"
+            aria-label="Operatore"
+          >
+            <option value="">Chi sei?</option>
+            {OPERATORS.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Search */}
         <div className="relative flex-1 min-w-[260px] max-w-[400px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -956,8 +1087,11 @@ export default function Inventario() {
                     className="h-9 w-full rounded-md border border-border-default bg-bg-elevated px-3 text-text-primary text-sm focus:border-accent-primary focus:outline-none"
                   >
                     <option value="">Tutti</option>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
+                    {GRADI.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -1189,9 +1323,28 @@ export default function Inventario() {
               {editingItem ? `Modifica Articolo — ${editingItem.nome}` : `Nuovo Articolo — ${currentCategoryLabel}`}
             </DialogTitle>
             <DialogDescription className="text-text-muted font-body-small">
-              {editingItem ? 'Modifica i dettagli dell\'articolo selezionato.' : 'Inserisci i dettagli del nuovo articolo.'}
+              {editingItem
+                ? 'Modifica i dettagli dell\'articolo. La modifica sarà registrata a tuo nome.'
+                : 'Inserisci i dettagli del nuovo articolo. La creazione sarà registrata a tuo nome.'}
             </DialogDescription>
           </DialogHeader>
+          {editingItem?.updatedAt && (
+            <div className="rounded-lg border border-status-blu/30 bg-status-blu/10 px-3 py-2.5 -mt-1">
+              <p className="font-caption text-status-blu uppercase tracking-wide mb-1">Ultimo aggiornamento registrato</p>
+              <p className="font-body-small text-text-primary">
+                {formatAbsoluteDateTime(editingItem.updatedAt)}
+                {editingItem.lastModifiedBy ? ` · ${editingItem.lastModifiedBy}` : ''}
+              </p>
+              <p className="font-caption text-text-muted mt-1">
+                ({formatRelativeTime(editingItem.updatedAt)})
+              </p>
+            </div>
+          )}
+          {operatore && (
+            <p className="font-caption text-text-muted -mt-1">
+              Stai operando come: <span className="text-accent-primary font-medium">{operatore}</span>
+            </p>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -1232,8 +1385,11 @@ export default function Inventario() {
                   <div>
                     <Label className="text-text-secondary mb-1.5 block">Grado *</Label>
                     <select name="grado" defaultValue={editingItem?.grado || 'A'} required className="h-9 w-full rounded-md border border-border-default bg-bg-elevated px-3 text-text-primary text-sm focus:border-accent-primary focus:outline-none">
-                      <option>A</option>
-                      <option>B</option>
+                      {GRADI.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

@@ -24,9 +24,10 @@ export type Database = {
           scaffale: number | null;
           ripiano: number | null;
           bancale: string | null;
-          grado: 'A' | 'B' | null;
+          grado: 'A' | 'B' | 'C' | null;
           created_at: string;
           updated_at: string;
+          last_modified_by: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;
         };
         Insert: {
           id: string;
@@ -42,9 +43,10 @@ export type Database = {
           scaffale?: number | null;
           ripiano?: number | null;
           bancale?: string | null;
-          grado?: 'A' | 'B' | null;
+          grado?: 'A' | 'B' | 'C' | null;
           created_at?: string;
           updated_at?: string;
+          last_modified_by?: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;
         };
         Update: {
           id?: string;
@@ -60,9 +62,43 @@ export type Database = {
           scaffale?: number | null;
           ripiano?: number | null;
           bancale?: string | null;
-          grado?: 'A' | 'B' | null;
+          grado?: 'A' | 'B' | 'C' | null;
           created_at?: string;
           updated_at?: string;
+          last_modified_by?: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;
+        };
+        Relationships: [];
+      };
+      inventory_activity: {
+        Row: {
+          id: string;
+          item_id: string;
+          operatore: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo';
+          action: string;
+          quantity_before: number | null;
+          quantity_after: number | null;
+          summary: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_id: string;
+          operatore: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo';
+          action: string;
+          quantity_before?: number | null;
+          quantity_after?: number | null;
+          summary?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_id?: string;
+          operatore?: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo';
+          action?: string;
+          quantity_before?: number | null;
+          quantity_after?: number | null;
+          summary?: string;
+          created_at?: string;
         };
         Relationships: [];
       };

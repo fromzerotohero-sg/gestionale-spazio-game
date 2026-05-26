@@ -24,7 +24,7 @@ export interface MonitorItem {
   scaffale: number;
   ripiano: number;
   bancale: string;
-  grado: 'A' | 'B';
+  grado: 'A' | 'B' | 'C';
 }
 
 export interface FilterState {

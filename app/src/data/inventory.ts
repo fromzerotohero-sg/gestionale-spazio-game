@@ -14,6 +14,8 @@ export interface BaseItem {
   sede: Sede;
 }
 
+export type MonitorGrado = 'A' | 'B' | 'C';
+
 export interface MonitorItem {
   id: string;
   tipo: string;
@@ -24,7 +26,7 @@ export interface MonitorItem {
   scaffale: number;
   ripiano: number;
   bancale: string;
-  grado: 'A' | 'B';
+  grado: MonitorGrado;
 }
 
 export interface FilterState {
@@ -39,7 +41,7 @@ export interface FilterState {
 
 export const SEDI: Sede[] = ['Magazzino Principale', 'Limena', 'Magazzino Angelo'];
 
-export const GRADI = ['A', 'B'] as const;
+export const GRADI: MonitorGrado[] = ['A', 'B', 'C'];
 
 // ─────────── SCHEDE (28 items, total €26.900) ───────────
 export const schedeData: BaseItem[] = [
