@@ -1,8 +1,9 @@
 {
   "name": "gestionale-spazio-game",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "npm run build --prefix app",
-    "vercel-build": "npm run build --prefix app"
+    "build": "npm run build --prefix app && node scripts/copy-dist.mjs",
+    "vercel-build": "npm run build"
   }
 }

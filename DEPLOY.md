@@ -1,27 +1,43 @@
-# Deploy su Vercel
+# Deploy su Vercel — Gestionale Spazio Games
 
-## Impostazioni progetto (importante)
+## Impostazioni obbligatorie
 
-In **Vercel → Project Settings → General**:
+Vercel → **Project Settings → General**:
 
 | Campo | Valore |
 |-------|--------|
-| **Root Directory** | *(vuoto — non impostare `app`)* |
-| **Framework Preset** | Other (oppure Vite, se non sovrascrive la build) |
-| **Build Command** | *(lasciare vuoto — usa `vercel.json`)* |
-| **Output Directory** | *(lasciare vuoto — usa `vercel.json`)* |
+| **Root Directory** | *(lasciare VUOTO — non scrivere `app`)* |
+| **Framework Preset** | Other |
+| **Build Command** | *(vuoto — usa `vercel.json`)* |
+| **Output Directory** | *(vuoto — usa `vercel.json`)* |
+
+Se **Root Directory** è impostata su `app`, il sito resta in **404**: rimuovila e salva.
 
 ## Variabili d'ambiente
 
-In **Settings → Environment Variables**:
+**Settings → Environment Variables** (Production + Preview):
 
 - `VITE_SUPABASE_URL` = `https://zcgynarwbouaaamioegr.supabase.co`
-- `VITE_SUPABASE_ANON_KEY` = *(anon key da Supabase Dashboard)*
+- `VITE_SUPABASE_ANON_KEY` = chiave **anon** da [Supabase Dashboard](https://supabase.com/dashboard) → Project → Settings → API
 
-Applica a **Production**, **Preview** e **Development**.
+## Come funziona la build
 
-## Dopo ogni push
+1. `npm install` in `app/`
+2. `npm run build` in `app/` → genera `app/dist/`
+3. Copia in `dist/` alla root del repo (quello che Vercel pubblica)
 
-Vercel esegue automaticamente `vercel-build` in `app/` e pubblica `app/dist`.
+## Dopo il push
 
-Se vedi ancora `404: NOT_FOUND`, apri l’ultimo deployment → **Building** e verifica che la build sia **Ready** (non Failed).
+1. **Deployments** → ultimo deploy → deve essere **Ready** (verde)
+2. Se è **Failed**, apri **Building** e leggi l’errore
+3. **Redeploy** → spunta **Use existing Build Cache** = OFF
+
+## Test locale del flusso Vercel
+
+```bash
+npm install --prefix app
+npm run vercel-build
+npx serve dist
+```
+
+Apri http://localhost:3000 — deve comparire la dashboard Spazio Games.
