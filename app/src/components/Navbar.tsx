@@ -7,6 +7,7 @@ import {
   Wrench,
   FileText,
   Headphones,
+  QrCode,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ const navItems = [
   { icon: Package, label: 'Inventario', path: '/inventario' },
   { icon: Wrench, label: 'Riparazioni', path: '/riparazioni' },
   { icon: FileText, label: 'Modulistica', path: '/modulistica' },
+  { icon: QrCode, label: 'QR PVR', path: '/qr-pvr' },
   { icon: Headphones, label: 'Supporto', path: '/supporto' },
 ];
 

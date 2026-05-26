@@ -1,0 +1,229 @@
+/* Layout poster QR PVR — proporzioni originali 768×1152 */
+.qr-pvr-poster {
+  --qr-pvr-bg: #050505;
+  --qr-pvr-accent: #f2d85b;
+  --qr-pvr-line: #a9a9a9;
+  --qr-pvr-card: #f3f3f3;
+  --qr-pvr-radius: 28px;
+
+  position: relative;
+  width: 768px;
+  min-height: 1152px;
+  background: var(--qr-pvr-bg);
+  overflow: hidden;
+  padding: 52px 66px 48px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  flex-shrink: 0;
+}
+
+.qr-pvr-corner-top,
+.qr-pvr-corner-bottom {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.qr-pvr-corner-top {
+  top: 0;
+  left: 0;
+  border-width: 70px 200px 0 0;
+  border-color: var(--qr-pvr-accent) transparent transparent transparent;
+}
+
+.qr-pvr-corner-bottom {
+  right: 0;
+  bottom: 0;
+  border-width: 0 0 70px 200px;
+  border-color: transparent transparent var(--qr-pvr-accent) transparent;
+}
+
+.qr-pvr-hero {
+  background: rgba(255, 255, 255, 0.02);
+  padding: 24px 30px 28px;
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.qr-pvr-title {
+  color: var(--qr-pvr-accent);
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  margin: 0 0 10px;
+}
+
+.qr-pvr-divider {
+  border-top: 4px dotted var(--qr-pvr-line);
+  margin: 0 0 18px;
+}
+
+.qr-pvr-subtitle {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.45;
+  color: #fff;
+}
+
+.qr-pvr-subtitle strong {
+  color: var(--qr-pvr-accent);
+}
+
+.qr-pvr-qr-box {
+  width: 410px;
+  height: 410px;
+  margin: 0 auto 28px;
+  background: var(--qr-pvr-card);
+  border-radius: var(--qr-pvr-radius);
+  display: grid;
+  place-items: center;
+  padding: 22px;
+}
+
+.qr-pvr-qr-box canvas {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.qr-pvr-benefits {
+  width: fit-content;
+  margin: 0 auto 42px;
+  font-size: 27px;
+  line-height: 1.45;
+  color: #fff;
+}
+
+.qr-pvr-section-divider {
+  border-top: 4px dotted var(--qr-pvr-line);
+  margin: 0 28px 28px;
+}
+
+.qr-pvr-pvr-label {
+  font-size: 24px;
+  margin: 0 38px 16px;
+}
+
+.qr-pvr-pvr-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 38px 32px;
+  padding-bottom: 12px;
+  border-bottom: 4px dotted var(--qr-pvr-line);
+  word-break: break-word;
+}
+
+.qr-pvr-footer {
+  margin-top: 30px;
+  display: grid;
+  place-items: center;
+  gap: 18px;
+}
+
+.qr-pvr-adm {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px 16px;
+}
+
+.qr-pvr-adm-badge {
+  background: white;
+  color: #17479e;
+  font-weight: 900;
+  font-size: 44px;
+  padding: 6px 12px;
+  line-height: 1;
+}
+
+.qr-pvr-adm-text {
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.qr-pvr-site {
+  color: var(--qr-pvr-accent);
+  font-weight: 900;
+  font-size: 32px;
+}
+
+@media (max-width: 760px) {
+  .qr-pvr-poster {
+    width: 100%;
+    min-height: auto;
+    padding: 28px 18px;
+  }
+
+  .qr-pvr-title {
+    font-size: 24px;
+  }
+
+  .qr-pvr-subtitle {
+    font-size: 18px;
+  }
+
+  .qr-pvr-qr-box {
+    width: 280px;
+    height: 280px;
+  }
+
+  .qr-pvr-benefits {
+    font-size: 20px;
+  }
+
+  .qr-pvr-pvr-label,
+  .qr-pvr-pvr-value {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .qr-pvr-adm-text {
+    font-size: 18px;
+  }
+
+  .qr-pvr-site {
+    font-size: 24px;
+  }
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body.qr-pvr-printing * {
+    visibility: hidden;
+  }
+
+  body.qr-pvr-printing .qr-pvr-print-root,
+  body.qr-pvr-printing .qr-pvr-print-root * {
+    visibility: visible;
+  }
+
+  body.qr-pvr-printing .qr-pvr-print-root {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    padding: 0;
+    overflow: visible;
+  }
+
+  body.qr-pvr-printing .qr-pvr-print-scale {
+    transform: none !important;
+    width: 768px !important;
+  }
+
+  body.qr-pvr-printing .qr-pvr-poster {
+    box-shadow: none;
+    margin: 0 auto;
+  }
+}

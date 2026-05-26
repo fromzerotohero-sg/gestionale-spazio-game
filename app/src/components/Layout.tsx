@@ -17,6 +17,7 @@ const routeNames: Record<string, { title: string; breadcrumb: string }> = {
   '/riparazioni': { title: 'Riparazioni', breadcrumb: 'Riparazioni' },
   '/modulistica': { title: 'Modulistica', breadcrumb: 'Modulistica' },
   '/supporto': { title: 'Supporto', breadcrumb: 'Supporto' },
+  '/qr-pvr': { title: 'Generatore QR PVR', breadcrumb: 'QR PVR' },
 };
 
 interface LayoutProps {
