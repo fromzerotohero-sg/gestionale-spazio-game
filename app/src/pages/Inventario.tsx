@@ -61,6 +61,13 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { type Category, type Sede, GRADI, SEDI } from '@/data/inventory';
 import { OPERATORS, getStoredOperatore, setStoredOperatore, type Operatore } from '@/data/operators';
 import {
@@ -105,6 +112,8 @@ const SEDE_COLORS: Record<string, string> = {
   'Limena': 'bg-status-arancione/15 text-status-arancione border-status-arancione/30',
   'Magazzino Angelo': 'bg-status-viola/15 text-status-viola border-status-viola/30',
 };
+
+const OPERATOR_PLACEHOLDER = '__unset__';
 
 const GRADO_COLORS: Record<string, string> = {
   A: 'bg-status-verde/15 text-status-verde border-status-verde/30',
@@ -963,23 +972,40 @@ export default function Inventario() {
               : 'border-status-arancione/50 bg-status-arancione/10'
           )}
         >
-          <User size={16} className={operatore ? 'text-text-muted' : 'text-status-arancione'} />
-          <select
-            value={operatore ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setOperatore(value ? (value as Operatore) : null);
-            }}
-            className="bg-transparent text-sm text-text-primary focus:outline-none min-w-[120px]"
-            aria-label="Operatore"
+          <User size={16} className={operatore ? 'text-text-muted' : 'text-status-arancione shrink-0'} />
+          <Select
+            value={operatore ?? OPERATOR_PLACEHOLDER}
+            onValueChange={(value) =>
+              setOperatore(value === OPERATOR_PLACEHOLDER ? null : (value as Operatore))
+            }
           >
-            <option value="">Chi sei?</option>
-            {OPERATORS.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              aria-label="Operatore"
+              className="h-8 min-w-[128px] border-0 bg-transparent px-1 shadow-none text-text-primary focus-visible:ring-0 data-[placeholder]:text-text-muted"
+            >
+              <SelectValue placeholder="Chi sei?" />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              className="z-[100] border-border-default bg-bg-surface text-text-primary"
+            >
+              <SelectItem
+                value={OPERATOR_PLACEHOLDER}
+                className="text-text-muted focus:bg-bg-hover focus:text-text-primary"
+              >
+                Chi sei?
+              </SelectItem>
+              {OPERATORS.map((name) => (
+                <SelectItem
+                  key={name}
+                  value={name}
+                  className="focus:bg-accent-primary/15 focus:text-accent-primary"
+                >
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Search */}
