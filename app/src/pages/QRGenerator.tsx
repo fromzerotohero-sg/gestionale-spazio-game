@@ -2,13 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
-import { Download, Printer, QrCode } from 'lucide-react';
+import { Download, Mail, MessageCircle, Printer, QrCode, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { QrPvrPoster, QR_POSTER_WIDTH } from '@/components/qr-pvr/QrPvrPoster';
+import {
+  buildMailtoUrl,
+  buildQrPvrReopenHash,
+  buildQrPvrShareText,
+  buildWhatsAppUrl,
+} from '@/lib/qr-pvr-share';
 import { cn } from '@/lib/utils';
 
 const DEFAULT_REF = 'https://example.com/ref?pvr=PVR-BOLOGNA-01';
@@ -26,11 +32,14 @@ export default function QRGenerator() {
   const previewWrapRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
   const [downloading, setDownloading] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const [refLink, setRefLink] = useState(DEFAULT_REF);
   const [pvrName, setPvrName] = useState(DEFAULT_PVR);
   const [siteText, setSiteText] = useState(DEFAULT_SITE);
   const [benefits, setBenefits] = useState(DEFAULT_BENEFITS);
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [emailTo, setEmailTo] = useState('');
 
   useEffect(() => {
     const ref = searchParams.get('ref');
@@ -57,18 +66,21 @@ export default function QRGenerator() {
     return () => window.removeEventListener('resize', updatePreviewScale);
   }, [updatePreviewScale]);
 
-  async function handleDownload() {
+  async function renderPosterToCanvas() {
     const el = posterRef.current;
-    if (!el) return;
+    if (!el) throw new Error('Poster non pronto');
+    return html2canvas(el, {
+      backgroundColor: '#050505',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+  }
 
+  async function handleDownload() {
     setDownloading(true);
     try {
-      const canvas = await html2canvas(el, {
-        backgroundColor: '#050505',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
+      const canvas = await renderPosterToCanvas();
       const slug = pvrName.trim().replace(/[^\w\-]+/g, '_').slice(0, 40) || 'pvr';
       const link = document.createElement('a');
       link.download = `qr-pvr-${slug}.png`;
@@ -79,6 +91,84 @@ export default function QRGenerator() {
       toast.error('Errore durante il download del poster');
     } finally {
       setDownloading(false);
+    }
+  }
+
+  const reopenUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}${buildQrPvrReopenHash({
+          refLink,
+          pvrName,
+          siteText,
+          benefits,
+        })}`
+      : '';
+
+  const shareText = buildQrPvrShareText({
+    refLink,
+    pvrName,
+    siteText,
+    benefits,
+    reopenUrl,
+  });
+
+  function openExternalUrl(url: string) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function handleWhatsApp() {
+    const url = buildWhatsAppUrl(whatsappPhone.trim() || undefined, shareText);
+    openExternalUrl(url);
+    toast.message('WhatsApp', {
+      description: 'Se non si apre l’app, consenti i popup per questo sito.',
+    });
+  }
+
+  function handleEmail() {
+    const subject = `Poster QR PVR — ${pvrName.trim().slice(0, 60) || 'Spazio Games'}`;
+    let body = shareText;
+    const maxLen = 2000;
+    if (body.length > maxLen) {
+      body = `${body.slice(0, maxLen - 50)}\n\n[… testo troncato per limite email; usa il link in cima per aprire il gestionale]`;
+    }
+    const url = buildMailtoUrl(emailTo.trim() || undefined, subject, body);
+    window.location.href = url;
+  }
+
+  async function handleShareFile() {
+    const el = posterRef.current;
+    if (!el) return;
+
+    setSharing(true);
+    try {
+      const canvas = await renderPosterToCanvas();
+      const slug = pvrName.trim().replace(/[^\w\-]+/g, '_').slice(0, 40) || 'pvr';
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((b) => resolve(b), 'image/png', 1)
+      );
+      if (!blob) {
+        toast.error('Impossibile creare l’immagine');
+        return;
+      }
+      const file = new File([blob], `qr-pvr-${slug}.png`, { type: 'image/png' });
+      const shareData: ShareData = {
+        files: [file],
+        title: 'Poster QR PVR',
+        text: `PVR: ${pvrName.trim() || '—'}`,
+      };
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+        toast.success('Condivisione avviata');
+      } else {
+        toast.info('Condivisione file non disponibile su questo browser', {
+          description: 'Usa «Scarica» e poi allega in WhatsApp, oppure «WhatsApp» per inviare link e testo.',
+        });
+      }
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return;
+      toast.error('Errore durante la condivisione');
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -178,6 +268,51 @@ export default function QRGenerator() {
               <Printer size={16} />
               Stampa / PDF
             </Button>
+          </div>
+
+          <div className="rounded-lg border border-border-subtle bg-bg-surface/50 p-4 space-y-3">
+            <h4 className="font-heading-3 text-text-primary text-sm">Invia</h4>
+            <p className="font-body-small text-text-muted">
+              WhatsApp apre una chat con testo precompilato (link referral, PVR, link per riaprire il gestionale).
+              L’email usa il programma di posta sul PC. Per allegare il poster: prima «Scarica» oppure «Condividi
+              immagine» su telefono.
+            </p>
+            <div>
+              <Label className="text-text-secondary mb-1.5 block text-xs">
+                Numero WhatsApp (opzionale, solo cifre con prefisso paese, es. 393331234567)
+              </Label>
+              <Input
+                value={whatsappPhone}
+                onChange={(e) => setWhatsappPhone(e.target.value)}
+                placeholder="Lascia vuoto per scegliere il destinatario nell’app"
+                className="bg-bg-surface border-border-default h-9 text-sm"
+                inputMode="numeric"
+              />
+            </div>
+            <div>
+              <Label className="text-text-secondary mb-1.5 block text-xs">Email destinatario (opzionale)</Label>
+              <Input
+                type="email"
+                value={emailTo}
+                onChange={(e) => setEmailTo(e.target.value)}
+                placeholder="es. punto.vendita@azienda.it"
+                className="bg-bg-surface border-border-default h-9 text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" type="button" onClick={handleWhatsApp} className="border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10">
+                <MessageCircle size={16} />
+                WhatsApp
+              </Button>
+              <Button variant="outline" size="sm" type="button" onClick={handleEmail}>
+                <Mail size={16} />
+                Email
+              </Button>
+              <Button variant="outline" size="sm" type="button" onClick={handleShareFile} disabled={sharing || downloading}>
+                <Share2 size={16} />
+                {sharing ? 'Condivisione...' : 'Condividi immagine'}
+              </Button>
+            </div>
           </div>
 
           <p className="font-caption text-text-muted">
