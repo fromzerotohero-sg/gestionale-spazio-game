@@ -68,6 +68,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  exportInventoryToExcel,
+  type ExportScope,
+  CATEGORY_LABELS,
+} from '@/lib/inventory-export';
 import { type Category, type Sede, GRADI, SEDI } from '@/data/inventory';
 import { OPERATORS, getStoredOperatore, setStoredOperatore, type Operatore } from '@/data/operators';
 import {
@@ -162,23 +175,6 @@ function EmptyState({ onReset }: { onReset: () => void }) {
       </Button>
     </motion.div>
   );
-}
-
-// ─── Export CSV ────────────────────────────────────────────
-function exportToCSV(items: UnifiedItem[], filename: string) {
-  const headers = ['ID', 'Nome', 'Categoria', 'Quantita', 'Prezzo Unitario', 'Totale', 'Note', 'Sede'];
-  const rows = items.map((i) => [
-    i.id, i.nome, i.categoria, i.quantita, i.prezzoUnitario, i.totale, i.note, i.sede,
-  ]);
-  const csv = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast.success('Esportazione completata');
 }
 
 function LastModifiedCell({ item }: { item: UnifiedItem }) {
@@ -835,7 +831,39 @@ export default function Inventario() {
     setFilterSede('');
   }
 
-  const hasFilters = globalFilter || filterQtyMin || filterQtyMax || filterPriceMin || filterPriceMax || filterGrado || filterSede;
+  const hasFilters = Boolean(
+    globalFilter || filterQtyMin || filterQtyMax || filterPriceMin || filterPriceMax || filterGrado || filterSede
+  );
+
+  function handleExport(scope: ExportScope) {
+    try {
+      const filteredExportLabel =
+        scope.type === 'filtered'
+          ? activeTab === 'tutti'
+            ? hasFilters
+              ? 'tutti_filtrato'
+              : 'tutti'
+            : hasFilters
+              ? `${activeTab}_filtrato`
+              : activeTab
+          : '';
+
+      const resolvedScope: ExportScope =
+        scope.type === 'filtered' ? { type: 'filtered', label: filteredExportLabel } : scope;
+
+      const dataForScope =
+        scope.type === 'selection'
+          ? selectedRows.map((r) => r.original)
+          : scope.type === 'filtered'
+            ? filteredData
+            : items;
+
+      const { count, filename } = exportInventoryToExcel(items, resolvedScope, dataForScope);
+      toast.success(`Esportati ${count} articoli in ${filename}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore durante esportazione');
+    }
+  }
 
   const currentCategoryLabel = activeTab === 'tutti' ? 'Tutti' :
     activeTab === 'schede' ? 'Schede' :
@@ -893,9 +921,47 @@ export default function Inventario() {
           transition={{ delay: 0.15, duration: 0.3 }}
           className="flex items-center gap-3"
         >
-          <Button variant="outline" size="sm" onClick={() => exportToCSV(filteredData, `inventario_${activeTab}.csv`)}>
-            <Download size={16} /> Esporta CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download size={16} /> Esporta Excel
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-64 border-border-default bg-bg-surface text-text-primary"
+            >
+              <DropdownMenuLabel className="text-text-muted font-caption">
+                Vista corrente ({filteredData.length} articoli)
+              </DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleExport({ type: 'filtered', label: '' })}>
+                Excel — tab e filtri attivi
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-border-subtle" />
+              <DropdownMenuLabel className="text-text-muted font-caption">
+                Per categoria (tutto il magazzino)
+              </DropdownMenuLabel>
+              {(Object.keys(CATEGORY_LABELS) as Category[]).map((cat) => {
+                const count = items.filter((i) => i.categoria === cat).length;
+                return (
+                  <DropdownMenuItem
+                    key={cat}
+                    onClick={() => handleExport({ type: 'category', category: cat })}
+                    disabled={count === 0}
+                  >
+                    {CATEGORY_LABELS[cat]} ({count})
+                  </DropdownMenuItem>
+                );
+              })}
+              <DropdownMenuSeparator className="bg-border-subtle" />
+              <DropdownMenuItem onClick={() => handleExport({ type: 'all' })}>
+                Excel — inventario completo ({items.length})
+              </DropdownMenuItem>
+              <p className="px-2 py-1.5 font-caption text-text-muted">
+                Il file completo include fogli Riepilogo, Tutti e uno per categoria.
+              </p>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" onClick={openAddModal} className="bg-accent-primary text-bg-base hover:bg-accent-secondary">
             <Plus size={16} /> Nuovo Articolo
           </Button>
@@ -1278,8 +1344,16 @@ export default function Inventario() {
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => exportToCSV(selectedRows.map((r) => r.original), 'selezionati.csv')}>
-                  <Download size={14} /> Esporta
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    handleExport({
+                      type: 'selection',
+                    })
+                  }
+                >
+                  <Download size={14} /> Esporta Excel
                 </Button>
                 <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)}>
                   <Trash2 size={14} /> Elimina
