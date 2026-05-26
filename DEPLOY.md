@@ -21,7 +21,7 @@ Vercel → **Settings → Environment Variables** → aggiungi per **Production*
 
 | Nome | Valore |
 |------|--------|
-| `VITE_SUPABASE_URL` | `https://zcgynarwbouaaamioegr.supabase.co` — **senza** `/rest/v1` alla fine |
+| `VITE_SUPABASE_URL` | `https://zewzttibcvuowskykega.supabase.co` — **senza** `/rest/v1` alla fine |
 | `VITE_SUPABASE_ANON_KEY` | Chiave **anon** (legacy) da Supabase → Project Settings → API |
 
 Se l’URL finisce con `/rest/v1`, le richieste diventano `/rest/v1/rest/v1/...` e ricevi **404**.

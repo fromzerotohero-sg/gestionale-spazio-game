@@ -2,7 +2,7 @@
 
 ## Progetto
 
-- URL: `https://zcgynarwbouaaamioegr.supabase.co`
+- URL: `https://zewzttibcvuowskykega.supabase.co`
 
 ## Tabelle gestionale
 
@@ -14,7 +14,7 @@
 | `support_tickets` | Ticket supporto |
 | `gestionale_admins` | Admin futuri (auth) |
 
-Le tabelle `site_assets` / `site_admins` restano per il sito web esistente.
+Progetto dedicato al gestionale Spazio Games (org. gestionale Spazio Game).
 
 ## Migrazioni applicate
 
