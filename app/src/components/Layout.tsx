@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Search, Bell, Settings } from 'lucide-react';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import { isSupabaseConfigured, supabaseConfigError } from '@/lib/supabase';
 
 const routeNames: Record<string, { title: string; breadcrumb: string }> = {
   '/': { title: 'Dashboard', breadcrumb: 'Dashboard' },
@@ -63,6 +64,14 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Main Content */}
         <main className="flex-1 p-8 overflow-x-hidden">
+          {!isSupabaseConfigured && (
+            <div
+              role="alert"
+              className="mb-6 rounded-lg border border-status-arancione/40 bg-status-arancione/10 px-4 py-3 text-sm text-status-arancione"
+            >
+              {supabaseConfigError}
+            </div>
+          )}
           {children}
         </main>
 

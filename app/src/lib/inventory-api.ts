@@ -1,5 +1,5 @@
 import type { Category } from '@/data/inventory';
-import { supabase } from '@/lib/supabase';
+import { getSupabase, isSupabaseConfigured, supabaseConfigError } from '@/lib/supabase';
 import type { InventoryRowInput, UnifiedItem } from '@/types/inventory';
 import type { Database, Tables } from '@/types/database';
 
@@ -50,7 +50,10 @@ function toDbRow(item: InventoryRowInput): InventoryInsert {
 }
 
 export async function fetchInventoryItems(): Promise<UnifiedItem[]> {
-  const { data, error } = await supabase
+  if (!isSupabaseConfigured) {
+    throw new Error(supabaseConfigError ?? 'Supabase non configurato');
+  }
+  const { data, error } = await getSupabase()
     .from('inventory_items')
     .select('*')
     .order('id', { ascending: true });
@@ -60,7 +63,7 @@ export async function fetchInventoryItems(): Promise<UnifiedItem[]> {
 }
 
 export async function createInventoryItem(item: InventoryRowInput): Promise<UnifiedItem> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('inventory_items')
     .insert(toDbRow(item))
     .select()
@@ -92,7 +95,7 @@ export async function updateInventoryItem(
     row.nome = `${patch.marca} ${patch.modello}`;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('inventory_items')
     .update(row)
     .eq('id', id)
@@ -104,7 +107,7 @@ export async function updateInventoryItem(
 }
 
 export async function deleteInventoryItems(ids: string[]): Promise<void> {
-  const { error } = await supabase.from('inventory_items').delete().in('id', ids);
+  const { error } = await getSupabase().from('inventory_items').delete().in('id', ids);
   if (error) throw error;
 }
 

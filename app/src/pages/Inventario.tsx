@@ -760,7 +760,7 @@ export default function Inventario() {
         <p className="font-heading-3 text-status-rosso">Errore connessione database</p>
         <p className="font-body-small text-text-muted">{(error as Error).message}</p>
         <p className="font-caption text-text-muted">
-          Verifica VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY in app/.env
+          Locale: app/.env — Produzione Vercel: Settings → Environment Variables, poi Redeploy (senza cache).
         </p>
       </div>
     );

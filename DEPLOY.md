@@ -13,12 +13,20 @@ Vercel → **Project Settings → General**:
 
 Se **Root Directory** è impostata su `app`, il sito resta in **404**: rimuovila e salva.
 
-## Variabili d'ambiente
+## Variabili d'ambiente (obbligatorie)
 
-**Settings → Environment Variables** (Production + Preview):
+Vite legge `VITE_*` **solo durante la build**. Se le aggiungi dopo, serve un **nuovo deploy**.
 
-- `VITE_SUPABASE_URL` = `https://zcgynarwbouaaamioegr.supabase.co`
-- `VITE_SUPABASE_ANON_KEY` = chiave **anon** da [Supabase Dashboard](https://supabase.com/dashboard) → Project → Settings → API
+Vercel → **Settings → Environment Variables** → aggiungi per **Production** e **Preview**:
+
+| Nome | Valore |
+|------|--------|
+| `VITE_SUPABASE_URL` | `https://zcgynarwbouaaamioegr.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Chiave **anon** (legacy) da Supabase → Project Settings → API |
+
+Poi: **Deployments → Redeploy** (disattiva *Use existing Build Cache*).
+
+Senza queste variabili vedrai errori `placeholder.supabase.co` o `ERR_NAME_NOT_RESOLVED` in console.
 
 ## Come funziona la build
 
