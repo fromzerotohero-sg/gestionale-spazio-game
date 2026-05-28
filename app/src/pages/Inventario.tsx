@@ -242,6 +242,9 @@ export default function Inventario() {
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColMenu, setShowColMenu] = useState(false);
   const [operatore, setOperatore] = useState<Operatore | null>(() => getStoredOperatore());
+  const [modalQuantita, setModalQuantita] = useState(1);
+  const [modalPrezzo, setModalPrezzo] = useState(0);
+  const [prelievoQuantita, setPrelievoQuantita] = useState('');
 
   const { data: items = [], isLoading, isError, error } = useInventoryItems();
   const createItem = useCreateInventoryItem();
@@ -689,12 +692,18 @@ export default function Inventario() {
   function openAddModal() {
     if (!requireOperatore()) return;
     setEditingItem(null);
+    setModalQuantita(1);
+    setModalPrezzo(0);
+    setPrelievoQuantita('');
     setItemModalOpen(true);
   }
 
   function openEditModal(item: UnifiedItem) {
     if (!requireOperatore()) return;
     setEditingItem(item);
+    setModalQuantita(item.quantita);
+    setModalPrezzo(item.prezzoUnitario);
+    setPrelievoQuantita('');
     setItemModalOpen(true);
   }
 
@@ -736,6 +745,22 @@ export default function Inventario() {
         onError: () => toast.error('Errore durante eliminazione multipla'),
       }
     );
+  }
+
+  function applyPrelievoRapido() {
+    const prelievo = Number(prelievoQuantita);
+    if (!Number.isFinite(prelievo) || prelievo <= 0) {
+      toast.error('Inserisci una quantita prelevata valida');
+      return;
+    }
+    if (prelievo > modalQuantita) {
+      toast.error(`Prelievo superiore alla giacenza: massimo ${modalQuantita}`);
+      return;
+    }
+    const nuovaGiacenza = modalQuantita - prelievo;
+    setModalQuantita(nuovaGiacenza);
+    setPrelievoQuantita('');
+    toast.success(`Prelievo registrato: -${prelievo} (nuova giacenza ${nuovaGiacenza})`);
   }
 
   function handleSaveItem(formData: FormData) {
@@ -1460,13 +1485,63 @@ export default function Inventario() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-text-secondary mb-1.5 block">Quantita *</Label>
-                <Input name="quantita" type="number" min={0} defaultValue={editingItem?.quantita || 1} required className="bg-bg-elevated border-border-default" />
+                <Input
+                  name="quantita"
+                  type="number"
+                  min={0}
+                  value={modalQuantita}
+                  onChange={(e) => setModalQuantita(Math.max(0, Number(e.target.value || 0)))}
+                  required
+                  className="bg-bg-elevated border-border-default"
+                />
               </div>
               <div>
                 <Label className="text-text-secondary mb-1.5 block">Prezzo Unitario (€) *</Label>
-                <Input name="prezzo" type="number" min={0} step={0.01} defaultValue={editingItem?.prezzoUnitario || 0} required className="bg-bg-elevated border-border-default" />
+                <Input
+                  name="prezzo"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={modalPrezzo}
+                  onChange={(e) => setModalPrezzo(Math.max(0, Number(e.target.value || 0)))}
+                  required
+                  className="bg-bg-elevated border-border-default"
+                />
               </div>
             </div>
+
+            {editingItem && (
+              <div className="rounded-lg border border-accent-primary/35 bg-accent-primary/10 p-4">
+                <p className="font-caption text-accent-primary uppercase tracking-wide mb-2">Prelievo rapido magazzino</p>
+                <p className="font-body-small text-text-secondary mb-3">
+                  Inserisci quanta merce hai prelevato: la giacenza si aggiorna in automatico.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+                  <div>
+                    <Label className="text-text-secondary mb-1.5 block">Quantita prelevata</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={modalQuantita}
+                      value={prelievoQuantita}
+                      onChange={(e) => setPrelievoQuantita(e.target.value)}
+                      placeholder="es. 40"
+                      className="bg-bg-elevated border-border-default"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={applyPrelievoRapido}
+                    className="bg-accent-primary text-bg-base hover:bg-accent-secondary w-full sm:w-auto"
+                  >
+                    Applica prelievo
+                  </Button>
+                </div>
+                <p className="font-caption text-text-muted mt-2">
+                  Giacenza attuale dopo prelievo: <span className="text-text-primary font-semibold">{modalQuantita}</span>
+                </p>
+              </div>
+            )}
 
             {/* Monitor extra fields */}
             {(activeTab === 'monitor' || editingItem?.categoria === 'monitor') && (
@@ -1545,10 +1620,7 @@ export default function Inventario() {
             <div className="bg-bg-elevated border border-border-subtle rounded-lg p-4 text-center">
               <span className="font-caption text-text-muted">Totale calcolato</span>
               <p className="font-data-md text-accent-primary mt-1">
-                {formatCurrency(
-                  (Number((document.querySelector('input[name="quantita"]') as HTMLInputElement)?.value || editingItem?.quantita || 0)) *
-                  (Number((document.querySelector('input[name="prezzo"]') as HTMLInputElement)?.value || editingItem?.prezzoUnitario || 0))
-                )}
+                {formatCurrency(modalQuantita * modalPrezzo)}
               </p>
             </div>
 
