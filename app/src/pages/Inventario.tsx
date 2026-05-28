@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import {
   Search,
   Download,
+  Upload,
   Plus,
   Pencil,
   Trash2,
@@ -81,6 +82,7 @@ import {
   type ExportScope,
   CATEGORY_LABELS,
 } from '@/lib/inventory-export';
+import { parseInventoryImportFile } from '@/lib/inventory-import';
 import { type Category, type Sede, GRADI, SEDI } from '@/data/inventory';
 import { OPERATORS, getStoredOperatore, setStoredOperatore, type Operatore } from '@/data/operators';
 import {
@@ -262,7 +264,12 @@ export default function Inventario() {
   const [operatore, setOperatore] = useState<Operatore | null>(() => getStoredOperatore());
   const [modalQuantita, setModalQuantita] = useState(1);
   const [modalPrezzo, setModalPrezzo] = useState(0);
+  const [modalNote, setModalNote] = useState('');
+  const [showModalNote, setShowModalNote] = useState(false);
   const [prelievoQuantita, setPrelievoQuantita] = useState('');
+  const [caricoQuantita, setCaricoQuantita] = useState('');
+  const [movimentoNota, setMovimentoNota] = useState('');
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: items = [], isLoading, isError, error } = useInventoryItems();
   const createItem = useCreateInventoryItem();
@@ -712,7 +719,11 @@ export default function Inventario() {
     setEditingItem(null);
     setModalQuantita(1);
     setModalPrezzo(0);
+    setModalNote('');
+    setShowModalNote(false);
     setPrelievoQuantita('');
+    setCaricoQuantita('');
+    setMovimentoNota('');
     setItemModalOpen(true);
   }
 
@@ -721,7 +732,11 @@ export default function Inventario() {
     setEditingItem(item);
     setModalQuantita(item.quantita);
     setModalPrezzo(item.prezzoUnitario);
+    setModalNote(item.note || '');
+    setShowModalNote(false);
     setPrelievoQuantita('');
+    setCaricoQuantita('');
+    setMovimentoNota('');
     setItemModalOpen(true);
   }
 
@@ -765,6 +780,20 @@ export default function Inventario() {
     );
   }
 
+  function appendMovimentoNota(tipo: 'PRELIEVO' | 'CARICO', quantita: number) {
+    const nota = movimentoNota.trim();
+    const timestamp = new Date().toLocaleString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const base = `${timestamp} · ${tipo} ${tipo === 'PRELIEVO' ? '-' : '+'}${quantita}`;
+    const text = nota ? `${base} · ${nota}` : base;
+    setModalNote((prev) => (prev.trim() ? `${prev.trim()}\n${text}` : text));
+    setMovimentoNota('');
+  }
+
   function applyPrelievoRapido() {
     const prelievo = Number(prelievoQuantita);
     if (!Number.isFinite(prelievo) || prelievo <= 0) {
@@ -778,7 +807,21 @@ export default function Inventario() {
     const nuovaGiacenza = modalQuantita - prelievo;
     setModalQuantita(nuovaGiacenza);
     setPrelievoQuantita('');
+    appendMovimentoNota('PRELIEVO', prelievo);
     toast.success(`Prelievo registrato: -${prelievo} (nuova giacenza ${nuovaGiacenza})`);
+  }
+
+  function applyCaricoRapido() {
+    const carico = Number(caricoQuantita);
+    if (!Number.isFinite(carico) || carico <= 0) {
+      toast.error('Inserisci una quantita da aggiungere valida');
+      return;
+    }
+    const nuovaGiacenza = modalQuantita + carico;
+    setModalQuantita(nuovaGiacenza);
+    setCaricoQuantita('');
+    appendMovimentoNota('CARICO', carico);
+    toast.success(`Carico registrato: +${carico} (nuova giacenza ${nuovaGiacenza})`);
   }
 
   function handleSaveItem(formData: FormData) {
@@ -787,7 +830,7 @@ export default function Inventario() {
     const nome = formData.get('nome') as string;
     const quantita = Number(formData.get('quantita'));
     const prezzo = Number(formData.get('prezzo'));
-    const note = formData.get('note') as string;
+    const note = modalNote;
     const sede = formData.get('sede') as Sede;
 
     const onDone = () => {
@@ -908,6 +951,89 @@ export default function Inventario() {
     }
   }
 
+  async function handleImportFile(file: File) {
+    const op = requireOperatore();
+    if (!op) return;
+
+    const fallbackCategory = activeTab === 'tutti' ? undefined : activeTab;
+    try {
+      const { rows, warnings } = await parseInventoryImportFile(file, fallbackCategory);
+      if (!rows.length) {
+        toast.error('Nessuna riga valida da importare');
+        return;
+      }
+
+      let created = 0;
+      let updated = 0;
+      let skipped = warnings.length;
+      const existingById = new Map(items.map((i) => [i.id, i]));
+      const usedIds = new Set(items.map((i) => i.id));
+      const categoryMax = {
+        schede: 0,
+        cabinet: 0,
+        cambiamonete: 0,
+        accessori: 0,
+        monitor: 0,
+      } as Record<Category, number>;
+
+      items.forEach((it) => {
+        const n = parseInt(it.id.split('-')[1] ?? '0', 10);
+        if (Number.isFinite(n)) {
+          categoryMax[it.categoria] = Math.max(categoryMax[it.categoria], n);
+        }
+      });
+
+      for (const row of rows) {
+        try {
+          if (row.id && existingById.has(row.id)) {
+            const previous = existingById.get(row.id)!;
+            await updateItem.mutateAsync({
+              id: row.id,
+              operatore: op,
+              previous,
+              patch: row,
+            });
+            updated += 1;
+            continue;
+          }
+
+          const item = { ...row };
+          if (!item.id || usedIds.has(item.id)) {
+            const cat = item.categoria;
+            categoryMax[cat] += 1;
+            const prefix = {
+              schede: 'SC',
+              cabinet: 'CB',
+              cambiamonete: 'CM',
+              accessori: 'AC',
+              monitor: 'MN',
+            }[cat];
+            item.id = `${prefix}-${String(categoryMax[cat]).padStart(3, '0')}`;
+          }
+          usedIds.add(item.id);
+          await createItem.mutateAsync({ item, operatore: op });
+          created += 1;
+        } catch {
+          skipped += 1;
+        }
+      }
+
+      toast.success(`Import completato: ${created} creati, ${updated} aggiornati, ${skipped} scartati`, {
+        duration: 7000,
+      });
+      if (warnings.length) {
+        toast.message('Righe scartate in parsing', {
+          description: warnings.slice(0, 3).join(' · '),
+          duration: 8000,
+        });
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Errore import file');
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  }
+
   const currentCategoryLabel = activeTab === 'tutti' ? 'Tutti' :
     activeTab === 'schede' ? 'Schede' :
     activeTab === 'cabinet' ? 'Cabinet' :
@@ -964,6 +1090,23 @@ export default function Inventario() {
           transition={{ delay: 0.15, duration: 0.3 }}
           className="flex items-center gap-3"
         >
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImportFile(f);
+            }}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => importInputRef.current?.click()}
+          >
+            <Upload size={16} /> Importa Excel
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -1532,11 +1675,11 @@ export default function Inventario() {
 
             {editingItem && (
               <div className="rounded-lg border border-accent-primary/35 bg-accent-primary/10 p-4">
-                <p className="font-caption text-accent-primary uppercase tracking-wide mb-2">Prelievo rapido magazzino</p>
+                <p className="font-caption text-accent-primary uppercase tracking-wide mb-2">Movimenti rapidi magazzino</p>
                 <p className="font-body-small text-text-secondary mb-3">
-                  Inserisci quanta merce hai prelevato: la giacenza si aggiorna in automatico.
+                  Registra prelievo o nuovo carico (es. nuovo bancale): la giacenza si aggiorna in automatico.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
                   <div>
                     <Label className="text-text-secondary mb-1.5 block">Quantita prelevata</Label>
                     <Input
@@ -1549,6 +1692,28 @@ export default function Inventario() {
                       className="bg-bg-elevated border-border-default"
                     />
                   </div>
+                  <div>
+                    <Label className="text-text-secondary mb-1.5 block">Quantita da aggiungere</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={caricoQuantita}
+                      onChange={(e) => setCaricoQuantita(e.target.value)}
+                      placeholder="es. 20"
+                      className="bg-bg-elevated border-border-default"
+                    />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <Label className="text-text-secondary mb-1.5 block">Nota movimento (opzionale)</Label>
+                  <Input
+                    value={movimentoNota}
+                    onChange={(e) => setMovimentoNota(e.target.value)}
+                    placeholder="es. Arrivato bancale nuovo da magazzino centrale"
+                    className="bg-bg-elevated border-border-default"
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
                   <Button
                     type="button"
                     onClick={applyPrelievoRapido}
@@ -1556,9 +1721,17 @@ export default function Inventario() {
                   >
                     Applica prelievo
                   </Button>
+                  <Button
+                    type="button"
+                    onClick={applyCaricoRapido}
+                    variant="outline"
+                    className="border-status-verde/40 text-status-verde hover:bg-status-verde/10 w-full sm:w-auto"
+                  >
+                    Aggiungi stock
+                  </Button>
                 </div>
                 <p className="font-caption text-text-muted mt-2">
-                  Giacenza attuale dopo prelievo: <span className="text-text-primary font-semibold">{modalQuantita}</span>
+                  Giacenza aggiornata: <span className="text-text-primary font-semibold">{modalQuantita}</span>
                 </p>
               </div>
             )}
@@ -1619,9 +1792,39 @@ export default function Inventario() {
               </>
             )}
 
-            <div>
-              <Label className="text-text-secondary mb-1.5 block">Note</Label>
-              <Textarea name="note" defaultValue={editingItem?.note || ''} rows={3} placeholder="Note operative, riferimenti DDT, sedi..." className="bg-bg-elevated border-border-default" />
+            <div className="rounded-lg border border-border-subtle bg-bg-elevated/50 p-3">
+              <button
+                type="button"
+                onClick={() => setShowModalNote((v) => !v)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <span className="font-body text-text-secondary">Note</span>
+                <span className="font-caption text-text-muted">
+                  {showModalNote ? 'Nascondi' : modalNote.trim() ? 'Apri (note presenti)' : 'Apri al bisogno'}
+                </span>
+              </button>
+              <AnimatePresence initial={false}>
+                {showModalNote && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: easeSmooth }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-3">
+                      <Textarea
+                        name="note"
+                        value={modalNote}
+                        onChange={(e) => setModalNote(e.target.value)}
+                        rows={3}
+                        placeholder="Note operative, riferimenti DDT, sedi..."
+                        className="bg-bg-elevated border-border-default"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div>
