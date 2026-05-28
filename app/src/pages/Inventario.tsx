@@ -134,6 +134,24 @@ const GRADO_COLORS: Record<string, string> = {
   C: 'bg-status-rosso/15 text-status-rosso border-status-rosso/30',
 };
 
+const COLUMN_LABELS: Record<string, string> = {
+  id: 'ID',
+  nome: 'Articolo',
+  tipo: 'Tipo',
+  modello: 'Modello',
+  marca: 'Marca',
+  quantita: 'Quantita',
+  prezzoUnitario: 'Prezzo unitario',
+  totale: 'Totale',
+  scaffale: 'Scaffale',
+  ripiano: 'Ripiano',
+  bancale: 'Bancale',
+  grado: 'Grado',
+  note: 'Note',
+  sede: 'Sede',
+  ultimoAggiornamento: 'Ultimo aggiornamento',
+};
+
 // ─── Sede Badge ────────────────────────────────────────────
 function SedeBadge({ sede }: { sede: string }) {
   return (
@@ -1154,7 +1172,9 @@ export default function Inventario() {
                         });
                       }}
                     />
-                    <span className="font-body-small text-text-secondary">{col.id}</span>
+                    <span className="font-body-small text-text-secondary">
+                      {COLUMN_LABELS[col.id] ?? col.id}
+                    </span>
                   </label>
                 ))}
               </motion.div>
