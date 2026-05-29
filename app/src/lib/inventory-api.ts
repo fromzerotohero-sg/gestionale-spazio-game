@@ -7,7 +7,7 @@ import {
   type InventoryAction,
 } from '@/lib/inventory-tracking';
 import { getSupabase, isSupabaseConfigured, supabaseConfigError } from '@/lib/supabase';
-import type { InventoryRowInput, UnifiedItem } from '@/types/inventory';
+import type { InventoryActivityEntry, InventoryRowInput, UnifiedItem } from '@/types/inventory';
 import type { Database, Tables } from '@/types/database';
 
 type InventoryRow = Tables<'inventory_items'>;
@@ -17,6 +17,7 @@ type InventoryUpdate = Database['public']['Tables']['inventory_items']['Update']
 export type InventoryMutationOptions = {
   operatore: Operatore;
   previous?: UnifiedItem;
+  skipActivityLog?: boolean;
 };
 
 export function rowToUnified(row: InventoryRow): UnifiedItem {
@@ -38,6 +39,9 @@ export function rowToUnified(row: InventoryRow): UnifiedItem {
     ripiano: row.ripiano ?? undefined,
     bancale: row.bancale ?? undefined,
     grado: row.grado ?? undefined,
+    bancaleVerificato: row.bancale_verificato,
+    bancaleVerificatoAt: row.bancale_verificato_at ?? undefined,
+    bancaleVerificatoDa: row.bancale_verificato_da ?? undefined,
     updatedAt: row.updated_at,
     lastModifiedBy: row.last_modified_by ?? undefined,
   };
@@ -60,6 +64,7 @@ function toDbRow(item: InventoryRowInput): InventoryInsert {
     ripiano: item.ripiano ?? null,
     bancale: item.bancale ?? null,
     grado: (item.grado as 'A' | 'B' | 'C' | undefined) ?? null,
+    bancale_verificato: item.bancaleVerificato ?? false,
   };
 }
 
@@ -81,6 +86,31 @@ async function recordActivity(
   });
 }
 
+export async function fetchInventoryActivity(itemId: string): Promise<InventoryActivityEntry[]> {
+  if (!isSupabaseConfigured) {
+    throw new Error(supabaseConfigError ?? 'Supabase non configurato');
+  }
+  const { data, error } = await getSupabase()
+    .from('inventory_activity')
+    .select('*')
+    .eq('item_id', itemId)
+    .in('action', ['prelievo', 'carico'])
+    .order('created_at', { ascending: false })
+    .limit(40);
+
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    itemId: row.item_id,
+    operatore: row.operatore,
+    action: row.action as InventoryAction,
+    quantityBefore: row.quantity_before,
+    quantityAfter: row.quantity_after,
+    summary: row.summary,
+    createdAt: row.created_at,
+  }));
+}
+
 export async function fetchInventoryItems(): Promise<UnifiedItem[]> {
   if (!isSupabaseConfigured) {
     throw new Error(supabaseConfigError ?? 'Supabase non configurato');
@@ -98,9 +128,16 @@ export async function createInventoryItem(
   item: InventoryRowInput,
   { operatore }: InventoryMutationOptions
 ): Promise<UnifiedItem> {
+  const insertRow: InventoryInsert = { ...toDbRow(item), last_modified_by: operatore };
+  if (item.bancaleVerificato) {
+    insertRow.bancale_verificato = true;
+    insertRow.bancale_verificato_at = new Date().toISOString();
+    insertRow.bancale_verificato_da = operatore;
+  }
+
   const { data, error } = await getSupabase()
     .from('inventory_items')
-    .insert({ ...toDbRow(item), last_modified_by: operatore })
+    .insert(insertRow)
     .select()
     .single();
 
@@ -121,7 +158,7 @@ export async function createInventoryItem(
 export async function updateInventoryItem(
   id: string,
   patch: Partial<InventoryRowInput>,
-  { operatore, previous }: InventoryMutationOptions
+  { operatore, previous, skipActivityLog }: InventoryMutationOptions
 ): Promise<UnifiedItem> {
   const row: InventoryUpdate = { last_modified_by: operatore };
   if (patch.nome !== undefined) row.nome = patch.nome;
@@ -137,6 +174,20 @@ export async function updateInventoryItem(
   if (patch.ripiano !== undefined) row.ripiano = patch.ripiano;
   if (patch.bancale !== undefined) row.bancale = patch.bancale;
   if (patch.grado !== undefined) row.grado = patch.grado as InventoryUpdate['grado'];
+  if (patch.bancaleVerificato !== undefined) {
+    row.bancale_verificato = patch.bancaleVerificato;
+    const bancaleChanged =
+      patch.bancale !== undefined && patch.bancale !== previous?.bancale;
+    if (patch.bancaleVerificato) {
+      if (!previous?.bancaleVerificato || bancaleChanged) {
+        row.bancale_verificato_at = new Date().toISOString();
+        row.bancale_verificato_da = operatore;
+      }
+    } else {
+      row.bancale_verificato_at = null;
+      row.bancale_verificato_da = null;
+    }
+  }
   if (patch.marca !== undefined && patch.modello !== undefined) {
     row.nome = `${patch.marca} ${patch.modello}`;
   }
@@ -156,14 +207,16 @@ export async function updateInventoryItem(
   if (error) throw error;
 
   const unified = rowToUnified(data);
-  await recordActivity(
-    id,
-    operatore,
-    action,
-    buildActivitySummary(action, itemName, qtyBefore, qtyAfter),
-    qtyBefore,
-    qtyAfter
-  );
+  if (!skipActivityLog) {
+    await recordActivity(
+      id,
+      operatore,
+      action,
+      buildActivitySummary(action, itemName, qtyBefore, qtyAfter),
+      qtyBefore,
+      qtyAfter
+    );
+  }
   return unified;
 }
 

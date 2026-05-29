@@ -1,5 +1,6 @@
 import type { Category, Sede } from '@/data/inventory';
 import type { Operatore } from '@/data/operators';
+import type { InventoryAction } from '@/lib/inventory-tracking';
 
 export interface UnifiedItem {
   id: string;
@@ -17,6 +18,9 @@ export interface UnifiedItem {
   ripiano?: number;
   bancale?: string;
   grado?: string;
+  bancaleVerificato?: boolean;
+  bancaleVerificatoAt?: string;
+  bancaleVerificatoDa?: Operatore;
   updatedAt?: string;
   lastModifiedBy?: Operatore;
 }
@@ -36,4 +40,16 @@ export type InventoryRowInput = {
   ripiano?: number;
   bancale?: string;
   grado?: string;
+  bancaleVerificato?: boolean;
+};
+
+export type InventoryActivityEntry = {
+  id: string;
+  itemId: string;
+  operatore: Operatore;
+  action: InventoryAction;
+  quantityBefore: number | null;
+  quantityAfter: number | null;
+  summary: string;
+  createdAt: string;
 };

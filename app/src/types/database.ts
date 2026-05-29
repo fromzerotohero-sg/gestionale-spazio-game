@@ -25,6 +25,9 @@ export type Database = {
           ripiano: number | null;
           bancale: string | null;
           grado: 'A' | 'B' | 'C' | null;
+          bancale_verificato: boolean;
+          bancale_verificato_at: string | null;
+          bancale_verificato_da: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;
           created_at: string;
           updated_at: string;
           last_modified_by: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;
@@ -44,6 +47,9 @@ export type Database = {
           ripiano?: number | null;
           bancale?: string | null;
           grado?: 'A' | 'B' | 'C' | null;
+          bancale_verificato?: boolean;
+          bancale_verificato_at?: string | null;
+          bancale_verificato_da?: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;
           created_at?: string;
           updated_at?: string;
           last_modified_by?: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;
@@ -63,6 +69,9 @@ export type Database = {
           ripiano?: number | null;
           bancale?: string | null;
           grado?: 'A' | 'B' | 'C' | null;
+          bancale_verificato?: boolean;
+          bancale_verificato_at?: string | null;
+          bancale_verificato_da?: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;
           created_at?: string;
           updated_at?: string;
           last_modified_by?: 'Giangrossi' | 'Irene' | 'Matteo' | 'Paolo' | null;

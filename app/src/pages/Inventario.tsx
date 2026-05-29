@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -39,6 +40,7 @@ import {
   User,
   Clock,
   AlertCircle,
+  Printer,
 } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -91,9 +93,17 @@ import {
   inventoryUpdateToast,
   resolveQuantityAction,
 } from '@/lib/inventory-tracking';
+import { MovimentiCronologia } from '@/components/inventory/MovimentiCronologia';
+import { InventoryLabelSheet } from '@/components/inventory/InventoryLabelSheet';
 import {
+  findItemsForLabelPrint,
+  triggerBrowserLabelPrint,
+} from '@/lib/inventory-label-print';
+import {
+  inventoryActivityQueryKey,
   useCreateInventoryItem,
   useDeleteInventoryItems,
+  useInventoryActivity,
   useInventoryItems,
   useUpdateInventoryItem,
 } from '@/hooks/use-inventory';
@@ -152,7 +162,19 @@ const COLUMN_LABELS: Record<string, string> = {
   note: 'Note',
   sede: 'Sede',
   ultimoAggiornamento: 'Ultimo aggiornamento',
+  verificaBancale: 'Verificato',
+  categoria: 'Categoria',
 };
+
+const CATEGORY_COLORS: Record<Category, string> = {
+  schede: 'bg-status-viola/15 text-status-viola border-status-viola/30',
+  cabinet: 'bg-status-arancione/15 text-status-arancione border-status-arancione/30',
+  cambiamonete: 'bg-status-giallo/15 text-status-giallo border-status-giallo/30',
+  accessori: 'bg-status-blu/15 text-status-blu border-status-blu/30',
+  monitor: 'bg-accent-primary/15 text-accent-primary border-accent-primary/30',
+};
+
+type FilterBancaleVerifica = 'tutti' | 'verificati' | 'da_verificare';
 
 // ─── Sede Badge ────────────────────────────────────────────
 function SedeBadge({ sede }: { sede: string }) {
@@ -194,6 +216,80 @@ function EmptyState({ onReset }: { onReset: () => void }) {
         Resetta Filtri
       </Button>
     </motion.div>
+  );
+}
+
+function BancaleVerificaCell({
+  item,
+  onToggle,
+  disabled,
+}: {
+  item: UnifiedItem;
+  onToggle: (item: UnifiedItem, checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  const title =
+    item.bancaleVerificato && item.bancaleVerificatoAt
+      ? [
+          formatAbsoluteDateTime(item.bancaleVerificatoAt),
+          item.bancaleVerificatoDa ? `da ${item.bancaleVerificatoDa}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : 'Non verificato';
+
+  return (
+    <div className="flex justify-center" title={title}>
+      <Checkbox
+        checked={!!item.bancaleVerificato}
+        disabled={disabled}
+        onCheckedChange={(v) => onToggle(item, !!v)}
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          'border-border-default',
+          item.bancaleVerificato &&
+            'data-[state=checked]:bg-status-blu data-[state=checked]:border-status-blu'
+        )}
+      />
+    </div>
+  );
+}
+
+function BancaleVerificaPanel({
+  checked,
+  onCheckedChange,
+  item,
+  disabled,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  item?: UnifiedItem | null;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-border-subtle bg-bg-elevated/40 p-3">
+      <Checkbox
+        id="bancale-verificato"
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(v) => onCheckedChange(!!v)}
+        className={cn(
+          'mt-0.5 border-border-default',
+          checked && 'data-[state=checked]:bg-status-blu data-[state=checked]:border-status-blu'
+        )}
+      />
+      <div className="min-w-0">
+        <Label htmlFor="bancale-verificato" className="text-text-primary font-medium cursor-pointer">
+          Bancale verificato
+        </Label>
+        {checked && item?.bancaleVerificatoAt && (
+          <p className="font-caption text-text-muted mt-1">
+            {formatAbsoluteDateTime(item.bancaleVerificatoAt)}
+            {item.bancaleVerificatoDa ? ` · ${item.bancaleVerificatoDa}` : ''}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -246,6 +342,13 @@ export default function Inventario() {
   const [filterPriceMax, setFilterPriceMax] = useState('');
   const [filterGrado, setFilterGrado] = useState('');
   const [filterSede, setFilterSede] = useState('');
+  const [filterBancaleVerifica, setFilterBancaleVerifica] = useState<FilterBancaleVerifica>('tutti');
+  const [modalBancaleVerificato, setModalBancaleVerificato] = useState(false);
+  const [rimuoviVerificaOpen, setRimuoviVerificaOpen] = useState(false);
+  const [pendingRimuoviVerifica, setPendingRimuoviVerifica] = useState<{
+    source: 'tabella' | 'modale';
+    item: UnifiedItem;
+  } | null>(null);
 
   // Modals
   const [itemModalOpen, setItemModalOpen] = useState(false);
@@ -265,13 +368,23 @@ export default function Inventario() {
   const [modalQuantita, setModalQuantita] = useState(1);
   const [modalPrezzo, setModalPrezzo] = useState(0);
   const [modalNote, setModalNote] = useState('');
-  const [showModalNote, setShowModalNote] = useState(false);
-  const [prelievoQuantita, setPrelievoQuantita] = useState('');
-  const [caricoQuantita, setCaricoQuantita] = useState('');
-  const [movimentoNota, setMovimentoNota] = useState('');
+  const [movimentoQuantita, setMovimentoQuantita] = useState('');
+  const [movimentoSaving, setMovimentoSaving] = useState(false);
+  const [notaSaving, setNotaSaving] = useState(false);
+  const [showNoteSection, setShowNoteSection] = useState(false);
+  const [showCronologiaSection, setShowCronologiaSection] = useState(false);
+  const [labelPrintItems, setLabelPrintItems] = useState<UnifiedItem[]>([]);
+  const [labelSearchArticolo, setLabelSearchArticolo] = useState('');
+  const [labelSearchBancale, setLabelSearchBancale] = useState('');
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: items = [], isLoading, isError, error } = useInventoryItems();
+  const {
+    data: activityRows = [],
+    isLoading: activityLoading,
+    isError: activityError,
+  } = useInventoryActivity(editingItem?.id ?? null, itemModalOpen && !!editingItem);
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
   const deleteItems = useDeleteInventoryItems();
@@ -284,6 +397,99 @@ export default function Inventario() {
     if (operatore) return operatore;
     toast.error('Seleziona il tuo nome in alto prima di modificare l\'inventario', { duration: 5000 });
     return null;
+  }
+
+  function applicaBancaleVerificato(item: UnifiedItem, verificato: boolean, onSuccess?: (data: UnifiedItem) => void) {
+    const op = requireOperatore();
+    if (!op) return;
+    updateItem.mutate(
+      {
+        id: item.id,
+        operatore: op,
+        previous: item,
+        patch: { bancaleVerificato: verificato },
+        skipActivityLog: true,
+      },
+      {
+        onSuccess: (data) => {
+          onSuccess?.(data);
+          toast.success(verificato ? 'Bancale verificato' : 'Verifica rimossa');
+        },
+        onError: () => toast.error('Errore aggiornamento verifica bancale'),
+      }
+    );
+  }
+
+  function richiediRimuoviVerificaBancale(item: UnifiedItem, source: 'tabella' | 'modale') {
+    setPendingRimuoviVerifica({ source, item });
+    setRimuoviVerificaOpen(true);
+  }
+
+  function confermaRimuoviVerificaBancale() {
+    if (!pendingRimuoviVerifica) return;
+    const { source, item } = pendingRimuoviVerifica;
+    setRimuoviVerificaOpen(false);
+    setPendingRimuoviVerifica(null);
+    applicaBancaleVerificato(item, false, (data) => {
+      if (source === 'modale' && editingItem?.id === data.id) {
+        setEditingItem(data);
+        setModalBancaleVerificato(false);
+      }
+    });
+  }
+
+  function toggleBancaleVerificaInTabella(item: UnifiedItem, checked: boolean) {
+    if (!checked && item.bancaleVerificato) {
+      richiediRimuoviVerificaBancale(item, 'tabella');
+      return;
+    }
+    if (checked) applicaBancaleVerificato(item, true);
+  }
+
+  function handleModalBancaleVerificatoChange(checked: boolean) {
+    if (!checked && modalBancaleVerificato && editingItem?.bancaleVerificato) {
+      richiediRimuoviVerificaBancale(editingItem, 'modale');
+      return;
+    }
+    setModalBancaleVerificato(checked);
+  }
+
+  function stampaEtichetta(targetItems: UnifiedItem[]) {
+    if (!targetItems.length) {
+      toast.error('Nessun articolo da stampare');
+      return;
+    }
+    if (targetItems.length > 40) {
+      toast.error(`Troppi risultati (${targetItems.length}). Affina la ricerca (max 40).`);
+      return;
+    }
+    setLabelPrintItems(targetItems);
+    window.setTimeout(() => {
+      triggerBrowserLabelPrint();
+      toast.success(
+        targetItems.length === 1
+          ? `Etichetta pronta: ${targetItems[0].id}`
+          : `${targetItems.length} etichette pronte per la stampa`
+      );
+    }, 150);
+  }
+
+  function stampaEtichettaDaToolbar() {
+    const matches = findItemsForLabelPrint(items, labelSearchArticolo, labelSearchBancale);
+    if (!labelSearchArticolo.trim() && !labelSearchBancale) {
+      toast.error('Inserisci codice articolo o seleziona un bancale');
+      return;
+    }
+    if (!matches.length) {
+      toast.error('Nessun articolo trovato con questi criteri');
+      return;
+    }
+    stampaEtichetta(matches);
+  }
+
+  function stampaEtichettaModale() {
+    if (!editingItem) return;
+    stampaEtichetta([editingItem]);
   }
 
   const tabs = useMemo(() => {
@@ -357,8 +563,25 @@ export default function Inventario() {
       data = data.filter((i) => i.sede === filterSede);
     }
 
+    if (filterBancaleVerifica === 'verificati') {
+      data = data.filter((i) => i.bancaleVerificato);
+    } else if (filterBancaleVerifica === 'da_verificare') {
+      data = data.filter((i) => !i.bancaleVerificato);
+    }
+
     return data;
-  }, [items, activeTab, globalFilter, filterQtyMin, filterQtyMax, filterPriceMin, filterPriceMax, filterGrado, filterSede]);
+  }, [
+    items,
+    activeTab,
+    globalFilter,
+    filterQtyMin,
+    filterQtyMax,
+    filterPriceMin,
+    filterPriceMax,
+    filterGrado,
+    filterSede,
+    filterBancaleVerifica,
+  ]);
 
   // ─── Column helpers ──────────────────────────────────────
   const colH = createColumnHelper<UnifiedItem>();
@@ -621,14 +844,96 @@ export default function Inventario() {
     })
   , [colH]);
 
+  const verificaBancaleColumn = useMemo(
+    () =>
+      colH.accessor((row) => row.bancaleVerificato ?? false, {
+        id: 'verificaBancale',
+        header: ({ column }) => (
+          <button
+            type="button"
+            onClick={() => {
+              if (!column.getIsSorted()) column.toggleSorting(true);
+              else column.toggleSorting();
+            }}
+            className="flex items-center justify-center gap-1 w-full font-caption text-text-muted uppercase hover:text-text-secondary transition-colors"
+          >
+            Verificato
+            {column.getIsSorted() === 'asc' && <ChevronUp size={12} />}
+            {column.getIsSorted() === 'desc' && <ChevronDown size={12} />}
+          </button>
+        ),
+        cell: ({ row }) => (
+          <BancaleVerificaCell
+            item={row.original}
+            onToggle={toggleBancaleVerificaInTabella}
+            disabled={!operatore}
+          />
+        ),
+        size: 56,
+        sortingFn: (a, b) =>
+          Number(a.original.bancaleVerificato) - Number(b.original.bancaleVerificato),
+      }),
+    [colH, operatore]
+  );
+
+  const categoriaColumn = useMemo(
+    () =>
+      colH.accessor('categoria', {
+        id: 'categoria',
+        header: ({ column }) => (
+          <button
+            type="button"
+            onClick={() => column.toggleSorting()}
+            className="flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors"
+          >
+            Categoria
+            {column.getIsSorted() === 'asc' && <ChevronUp size={12} />}
+            {column.getIsSorted() === 'desc' && <ChevronDown size={12} />}
+          </button>
+        ),
+        cell: ({ getValue }) => {
+          const cat = getValue();
+          return (
+            <span
+              className={cn(
+                'inline-flex items-center px-2 py-0.5 rounded font-badge border text-xs',
+                CATEGORY_COLORS[cat] ?? 'bg-bg-hover text-text-muted border-border-default'
+              )}
+            >
+              {CATEGORY_LABELS[cat] ?? cat}
+            </span>
+          );
+        },
+        size: 120,
+      }),
+    [colH]
+  );
+
   const lastModifiedColumn = useMemo(
     () =>
-      colH.display({
+      colH.accessor((row) => row.updatedAt ?? '', {
         id: 'ultimoAggiornamento',
-        header: 'Ultimo agg.',
+        header: ({ column }) => (
+          <button
+            type="button"
+            onClick={() => {
+              if (!column.getIsSorted()) column.toggleSorting(true);
+              else column.toggleSorting();
+            }}
+            className="flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors"
+          >
+            Ultimo agg.
+            {column.getIsSorted() === 'asc' && <ChevronUp size={12} />}
+            {column.getIsSorted() === 'desc' && <ChevronDown size={12} />}
+          </button>
+        ),
         cell: ({ row }) => <LastModifiedCell item={row.original} />,
+        sortingFn: (a, b) => {
+          const ta = a.original.updatedAt ? new Date(a.original.updatedAt).getTime() : 0;
+          const tb = b.original.updatedAt ? new Date(b.original.updatedAt).getTime() : 0;
+          return ta - tb;
+        },
         size: 150,
-        enableSorting: false,
       }),
     [colH]
   );
@@ -686,13 +991,48 @@ export default function Inventario() {
         monitorExtraCols[4], // ripiano
         monitorExtraCols[5], // bancale
         monitorExtraCols[6], // grado
+        verificaBancaleColumn,
         lastModifiedColumn,
         actionsColumn,
       ];
     }
 
-    return [...baseColumns, noteColumn, sedeColumn, lastModifiedColumn, actionsColumn];
-  }, [activeTab, baseColumns, monitorExtraCols, noteColumn, sedeColumn, lastModifiedColumn, actionsColumn]);
+    if (activeTab === 'tutti') {
+      return [
+        baseColumns[0],
+        baseColumns[1],
+        categoriaColumn,
+        baseColumns[2],
+        baseColumns[3],
+        baseColumns[4],
+        baseColumns[5],
+        noteColumn,
+        sedeColumn,
+        verificaBancaleColumn,
+        lastModifiedColumn,
+        actionsColumn,
+      ];
+    }
+
+    return [
+      ...baseColumns,
+      noteColumn,
+      sedeColumn,
+      verificaBancaleColumn,
+      lastModifiedColumn,
+      actionsColumn,
+    ];
+  }, [
+    activeTab,
+    baseColumns,
+    monitorExtraCols,
+    categoriaColumn,
+    noteColumn,
+    sedeColumn,
+    verificaBancaleColumn,
+    lastModifiedColumn,
+    actionsColumn,
+  ]);
 
   // ─── Table instance ──────────────────────────────────────
   const table = useReactTable({
@@ -720,10 +1060,10 @@ export default function Inventario() {
     setModalQuantita(1);
     setModalPrezzo(0);
     setModalNote('');
-    setShowModalNote(false);
-    setPrelievoQuantita('');
-    setCaricoQuantita('');
-    setMovimentoNota('');
+    setShowNoteSection(false);
+    setShowCronologiaSection(false);
+    setModalBancaleVerificato(false);
+    setMovimentoQuantita('');
     setItemModalOpen(true);
   }
 
@@ -733,10 +1073,10 @@ export default function Inventario() {
     setModalQuantita(item.quantita);
     setModalPrezzo(item.prezzoUnitario);
     setModalNote(item.note || '');
-    setShowModalNote(false);
-    setPrelievoQuantita('');
-    setCaricoQuantita('');
-    setMovimentoNota('');
+    setShowNoteSection(false);
+    setShowCronologiaSection(false);
+    setModalBancaleVerificato(!!item.bancaleVerificato);
+    setMovimentoQuantita('');
     setItemModalOpen(true);
   }
 
@@ -780,48 +1120,80 @@ export default function Inventario() {
     );
   }
 
-  function appendMovimentoNota(tipo: 'PRELIEVO' | 'CARICO', quantita: number) {
-    const nota = movimentoNota.trim();
-    const timestamp = new Date().toLocaleString('it-IT', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    const base = `${timestamp} · ${tipo} ${tipo === 'PRELIEVO' ? '-' : '+'}${quantita}`;
-    const text = nota ? `${base} · ${nota}` : base;
-    setModalNote((prev) => (prev.trim() ? `${prev.trim()}\n${text}` : text));
-    setMovimentoNota('');
+  function parseMovimentoQuantita(): number | null {
+    const qty = Number(movimentoQuantita);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      toast.error('Inserisci una quantita valida');
+      return null;
+    }
+    return qty;
   }
 
-  function applyPrelievoRapido() {
-    const prelievo = Number(prelievoQuantita);
-    if (!Number.isFinite(prelievo) || prelievo <= 0) {
-      toast.error('Inserisci una quantita prelevata valida');
-      return;
+  function applicaMovimentoMagazzino(action: 'prelievo' | 'carico') {
+    const op = requireOperatore();
+    if (!op || !editingItem) return;
+    const delta = parseMovimentoQuantita();
+    if (delta === null) return;
+
+    let nuovaGiacenza: number;
+    if (action === 'prelievo') {
+      if (delta > modalQuantita) {
+        toast.error(`Prelievo superiore alla giacenza: massimo ${modalQuantita}`);
+        return;
+      }
+      nuovaGiacenza = modalQuantita - delta;
+    } else {
+      nuovaGiacenza = modalQuantita + delta;
     }
-    if (prelievo > modalQuantita) {
-      toast.error(`Prelievo superiore alla giacenza: massimo ${modalQuantita}`);
-      return;
-    }
-    const nuovaGiacenza = modalQuantita - prelievo;
-    setModalQuantita(nuovaGiacenza);
-    setPrelievoQuantita('');
-    appendMovimentoNota('PRELIEVO', prelievo);
-    toast.success(`Prelievo registrato: -${prelievo} (nuova giacenza ${nuovaGiacenza})`);
+
+    const previous = { ...editingItem, quantita: modalQuantita };
+    setMovimentoSaving(true);
+    updateItem.mutate(
+      {
+        id: editingItem.id,
+        operatore: op,
+        previous,
+        patch: { quantita: nuovaGiacenza },
+      },
+      {
+        onSuccess: (data) => {
+          setEditingItem(data);
+          setModalQuantita(data.quantita);
+          setMovimentoQuantita('');
+          void queryClient.invalidateQueries({
+            queryKey: inventoryActivityQueryKey(editingItem.id),
+          });
+          toast.success(inventoryUpdateToast(op, data, action), { duration: 4000 });
+        },
+        onError: () => toast.error('Errore registrazione movimento'),
+        onSettled: () => setMovimentoSaving(false),
+      }
+    );
   }
 
-  function applyCaricoRapido() {
-    const carico = Number(caricoQuantita);
-    if (!Number.isFinite(carico) || carico <= 0) {
-      toast.error('Inserisci una quantita da aggiungere valida');
-      return;
-    }
-    const nuovaGiacenza = modalQuantita + carico;
-    setModalQuantita(nuovaGiacenza);
-    setCaricoQuantita('');
-    appendMovimentoNota('CARICO', carico);
-    toast.success(`Carico registrato: +${carico} (nuova giacenza ${nuovaGiacenza})`);
+  function salvaNotaArticolo() {
+    if (!editingItem) return;
+    const op = requireOperatore();
+    if (!op) return;
+    setNotaSaving(true);
+    updateItem.mutate(
+      {
+        id: editingItem.id,
+        operatore: op,
+        previous: editingItem,
+        patch: { note: modalNote },
+        skipActivityLog: true,
+      },
+      {
+        onSuccess: (data) => {
+          setEditingItem(data);
+          setModalNote(data.note || '');
+          toast.success('Nota salvata');
+        },
+        onError: () => toast.error('Errore salvataggio nota'),
+        onSettled: () => setNotaSaving(false),
+      }
+    );
   }
 
   function handleSaveItem(formData: FormData) {
@@ -830,7 +1202,6 @@ export default function Inventario() {
     const nome = formData.get('nome') as string;
     const quantita = Number(formData.get('quantita'));
     const prezzo = Number(formData.get('prezzo'));
-    const note = modalNote;
     const sede = formData.get('sede') as Sede;
 
     const onDone = () => {
@@ -849,7 +1220,6 @@ export default function Inventario() {
             nome,
             quantita,
             prezzoUnitario: prezzo,
-            note,
             sede,
             tipo: (formData.get('tipo') as string) || editingItem.tipo,
             modello: (formData.get('modello') as string) || editingItem.modello,
@@ -858,6 +1228,7 @@ export default function Inventario() {
             scaffale: Number(formData.get('scaffale')) || editingItem.scaffale,
             ripiano: Number(formData.get('ripiano')) || editingItem.ripiano,
             bancale: (formData.get('bancale') as string) || editingItem.bancale,
+            bancaleVerificato: modalBancaleVerificato,
           },
         },
         {
@@ -881,7 +1252,8 @@ export default function Inventario() {
             nome,
             quantita,
             prezzoUnitario: prezzo,
-            note,
+            note: '',
+            bancaleVerificato: modalBancaleVerificato,
             sede: sede || 'Magazzino Principale',
             ...(cat === 'monitor'
               ? {
@@ -915,10 +1287,18 @@ export default function Inventario() {
     setFilterPriceMax('');
     setFilterGrado('');
     setFilterSede('');
+    setFilterBancaleVerifica('tutti');
   }
 
   const hasFilters = Boolean(
-    globalFilter || filterQtyMin || filterQtyMax || filterPriceMin || filterPriceMax || filterGrado || filterSede
+    globalFilter ||
+      filterQtyMin ||
+      filterQtyMax ||
+      filterPriceMin ||
+      filterPriceMax ||
+      filterGrado ||
+      filterSede ||
+      filterBancaleVerifica !== 'tutti'
   );
 
   function handleExport(scope: ExportScope) {
@@ -1276,6 +1656,60 @@ export default function Inventario() {
           )}
         </div>
 
+        <div className="flex items-center gap-1 shrink-0">
+          {(
+            [
+              { key: 'tutti' as const, label: 'Tutti' },
+              { key: 'verificati' as const, label: 'Verificati' },
+              { key: 'da_verificare' as const, label: 'Da verificare' },
+            ] as const
+          ).map(({ key, label }) => (
+            <Button
+              key={key}
+              type="button"
+              variant={filterBancaleVerifica === key ? 'default' : 'outline'}
+              size="sm"
+              className={cn(
+                'h-8 px-2.5 text-xs',
+                filterBancaleVerifica === key && 'bg-accent-primary text-bg-base'
+              )}
+              onClick={() => {
+                setFilterBancaleVerifica(key);
+                setPagination((p) => ({ ...p, pageIndex: 0 }));
+              }}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0 border-l border-border-subtle pl-3">
+          <Input
+            value={labelSearchArticolo}
+            onChange={(e) => setLabelSearchArticolo(e.target.value)}
+            placeholder="ID / articolo"
+            className="h-8 w-[120px] sm:w-[140px] bg-bg-surface border-border-default text-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') stampaEtichettaDaToolbar();
+            }}
+          />
+          <select
+            value={labelSearchBancale}
+            onChange={(e) => setLabelSearchBancale(e.target.value)}
+            aria-label="Bancale etichetta"
+            className="h-8 rounded-md border border-border-default bg-bg-surface px-2 text-sm text-text-primary focus:border-accent-primary focus:outline-none"
+          >
+            <option value="">Bancale</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
+          <Button type="button" variant="outline" size="sm" className="h-8" onClick={stampaEtichettaDaToolbar}>
+            <Printer size={15} />
+            Stampa etichetta
+          </Button>
+        </div>
+
         {/* Filter toggle */}
         <Button
           variant={showFilters ? 'default' : 'outline'}
@@ -1438,6 +1872,14 @@ export default function Inventario() {
             {filterSede && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent-muted border border-accent-primary/40 text-accent-primary font-body-small">
                 Sede: {filterSede} <button onClick={() => setFilterSede('')}><X size={12} /></button>
+              </span>
+            )}
+            {filterBancaleVerifica !== 'tutti' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent-muted border border-accent-primary/40 text-accent-primary font-body-small">
+                {filterBancaleVerifica === 'verificati' ? 'Solo verificati' : 'Da verificare'}{' '}
+                <button type="button" onClick={() => setFilterBancaleVerifica('tutti')}>
+                  <X size={12} />
+                </button>
               </span>
             )}
           </motion.div>
@@ -1604,8 +2046,22 @@ export default function Inventario() {
       </motion.div>
 
       {/* ═══ Add/Edit Modal ═══ */}
-      <Dialog open={itemModalOpen} onOpenChange={setItemModalOpen}>
-        <DialogContent className="bg-bg-surface border-border-default text-text-primary max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog
+        open={itemModalOpen}
+        onOpenChange={(open) => {
+          if (!open) (document.activeElement as HTMLElement | null)?.blur?.();
+          setItemModalOpen(open);
+          if (!open) {
+            setEditingItem(null);
+            setShowNoteSection(false);
+            setShowCronologiaSection(false);
+          }
+        }}
+      >
+        <DialogContent
+          className="bg-bg-surface border-border-default text-text-primary max-w-lg max-h-[90vh] overflow-y-auto"
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="font-heading-2 text-text-primary">
               {editingItem ? `Modifica Articolo — ${editingItem.nome}` : `Nuovo Articolo — ${currentCategoryLabel}`}
@@ -1674,65 +2130,100 @@ export default function Inventario() {
             </div>
 
             {editingItem && (
-              <div className="rounded-lg border border-accent-primary/35 bg-accent-primary/10 p-4">
-                <p className="font-caption text-accent-primary uppercase tracking-wide mb-2">Movimenti rapidi magazzino</p>
-                <p className="font-body-small text-text-secondary mb-3">
-                  Registra prelievo o nuovo carico (es. nuovo bancale): la giacenza si aggiorna in automatico.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
-                  <div>
-                    <Label className="text-text-secondary mb-1.5 block">Quantita prelevata</Label>
+              <div className="rounded-lg border border-border-subtle bg-bg-elevated/40 p-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNoteSection((v) => !v)}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <span className="font-caption text-text-muted uppercase tracking-wide">Note</span>
+                  {showNoteSection ? (
+                    <ChevronUp size={16} className="text-text-muted shrink-0" />
+                  ) : (
+                    <ChevronDown size={16} className="text-text-muted shrink-0" />
+                  )}
+                </button>
+                <AnimatePresence initial={false}>
+                  {showNoteSection && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pt-3 space-y-2 border-t border-border-subtle mt-3">
+                        <Textarea
+                          value={modalNote}
+                          onChange={(e) => setModalNote(e.target.value)}
+                          rows={3}
+                          className="bg-bg-surface border-border-default text-sm"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={notaSaving || !operatore}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            salvaNotaArticolo();
+                          }}
+                        >
+                          {notaSaving ? 'Salvataggio...' : 'Salva nota'}
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {editingItem && (
+              <div className="rounded-lg border border-border-subtle bg-bg-elevated/40 p-3">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex-1 min-w-[88px]">
+                    <Label className="text-text-secondary mb-1 block font-caption">Quantita</Label>
                     <Input
                       type="number"
                       min={1}
-                      max={modalQuantita}
-                      value={prelievoQuantita}
-                      onChange={(e) => setPrelievoQuantita(e.target.value)}
-                      placeholder="es. 40"
-                      className="bg-bg-elevated border-border-default"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-text-secondary mb-1.5 block">Quantita da aggiungere</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={caricoQuantita}
-                      onChange={(e) => setCaricoQuantita(e.target.value)}
+                      value={movimentoQuantita}
+                      onChange={(e) => setMovimentoQuantita(e.target.value)}
                       placeholder="es. 20"
-                      className="bg-bg-elevated border-border-default"
+                      disabled={movimentoSaving}
+                      className="bg-bg-surface border-border-default h-9"
                     />
                   </div>
-                </div>
-                <div className="mt-2">
-                  <Label className="text-text-secondary mb-1.5 block">Nota movimento (opzionale)</Label>
-                  <Input
-                    value={movimentoNota}
-                    onChange={(e) => setMovimentoNota(e.target.value)}
-                    placeholder="es. Arrivato bancale nuovo da magazzino centrale"
-                    className="bg-bg-elevated border-border-default"
-                  />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
                   <Button
                     type="button"
-                    onClick={applyPrelievoRapido}
-                    className="bg-accent-primary text-bg-base hover:bg-accent-secondary w-full sm:w-auto"
+                    size="sm"
+                    disabled={movimentoSaving}
+                    onClick={() => applicaMovimentoMagazzino('prelievo')}
+                    variant="outline"
+                    className="border-status-rosso/50 text-status-rosso hover:bg-status-rosso/10"
                   >
                     Applica prelievo
                   </Button>
                   <Button
                     type="button"
-                    onClick={applyCaricoRapido}
-                    variant="outline"
-                    className="border-status-verde/40 text-status-verde hover:bg-status-verde/10 w-full sm:w-auto"
+                    size="sm"
+                    disabled={movimentoSaving}
+                    onClick={() => applicaMovimentoMagazzino('carico')}
+                    className="bg-status-blu text-white hover:bg-status-blu/90"
                   >
                     Aggiungi stock
                   </Button>
                 </div>
                 <p className="font-caption text-text-muted mt-2">
-                  Giacenza aggiornata: <span className="text-text-primary font-semibold">{modalQuantita}</span>
+                  Giacenza: <span className="text-text-primary font-semibold">{modalQuantita}</span>
                 </p>
+                <MovimentiCronologia
+                  entries={activityRows}
+                  isLoading={activityLoading}
+                  isError={activityError}
+                  open={showCronologiaSection}
+                  onOpenChange={setShowCronologiaSection}
+                />
               </div>
             )}
 
@@ -1792,40 +2283,12 @@ export default function Inventario() {
               </>
             )}
 
-            <div className="rounded-lg border border-border-subtle bg-bg-elevated/50 p-3">
-              <button
-                type="button"
-                onClick={() => setShowModalNote((v) => !v)}
-                className="w-full flex items-center justify-between text-left"
-              >
-                <span className="font-body text-text-secondary">Note</span>
-                <span className="font-caption text-text-muted">
-                  {showModalNote ? 'Nascondi' : modalNote.trim() ? 'Apri (note presenti)' : 'Apri al bisogno'}
-                </span>
-              </button>
-              <AnimatePresence initial={false}>
-                {showModalNote && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2, ease: easeSmooth }}
-                    className="overflow-hidden"
-                  >
-                    <div className="pt-3">
-                      <Textarea
-                        name="note"
-                        value={modalNote}
-                        onChange={(e) => setModalNote(e.target.value)}
-                        rows={3}
-                        placeholder="Note operative, riferimenti DDT, sedi..."
-                        className="bg-bg-elevated border-border-default"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <BancaleVerificaPanel
+              checked={modalBancaleVerificato}
+              onCheckedChange={handleModalBancaleVerificatoChange}
+              item={editingItem}
+              disabled={!operatore}
+            />
 
             <div>
               <Label className="text-text-secondary mb-1.5 block">Sede *</Label>
@@ -1847,13 +2310,26 @@ export default function Inventario() {
               </p>
             </div>
 
-            <DialogFooter className="gap-2">
-              <Button type="button" variant="ghost" onClick={() => { setItemModalOpen(false); setEditingItem(null); }}>
-                Annulla
-              </Button>
-              <Button type="submit" className="bg-accent-primary text-bg-base hover:bg-accent-secondary">
-                {editingItem ? 'Salva Modifiche' : 'Salva'}
-              </Button>
+            <DialogFooter className="gap-2 flex-wrap sm:justify-between">
+              {editingItem && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto sm:mr-auto"
+                  onClick={stampaEtichettaModale}
+                >
+                  <Printer size={16} />
+                  Stampa etichetta
+                </Button>
+              )}
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
+                <Button type="button" variant="ghost" onClick={() => { setItemModalOpen(false); setEditingItem(null); }}>
+                  Annulla
+                </Button>
+                <Button type="submit" className="bg-accent-primary text-bg-base hover:bg-accent-secondary">
+                  {editingItem ? 'Salva Modifiche' : 'Salva'}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1882,6 +2358,36 @@ export default function Inventario() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* ═══ Rimuovi verifica bancale ═══ */}
+      <AlertDialog
+        open={rimuoviVerificaOpen}
+        onOpenChange={(open) => {
+          setRimuoviVerificaOpen(open);
+          if (!open) setPendingRimuoviVerifica(null);
+        }}
+      >
+        <AlertDialogContent className="bg-bg-surface border-border-default text-text-primary max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading-2">Rimuovere verifica bancale?</AlertDialogTitle>
+            <AlertDialogDescription className="text-text-secondary font-body-small">
+              L&apos;articolo «{pendingRimuoviVerifica?.item.nome}» tornerà come da verificare.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setRimuoviVerificaOpen(false);
+                setPendingRimuoviVerifica(null);
+              }}
+            >
+              Annulla
+            </Button>
+            <Button onClick={confermaRimuoviVerificaBancale}>Rimuovi verifica</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* ═══ Bulk Delete Confirmation ═══ */}
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent className="bg-bg-surface border-border-default text-text-primary max-w-sm">
@@ -1904,6 +2410,8 @@ export default function Inventario() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <InventoryLabelSheet items={labelPrintItems} />
     </motion.div>
   );
 }

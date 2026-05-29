@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createInventoryItem,
   deleteInventoryItems,
+  fetchInventoryActivity,
   fetchInventoryItems,
   updateInventoryItem,
   type InventoryMutationOptions,
@@ -9,11 +10,20 @@ import {
 import type { InventoryRowInput, UnifiedItem } from '@/types/inventory';
 
 export const INVENTORY_QUERY_KEY = ['inventory'] as const;
+export const inventoryActivityQueryKey = (itemId: string) => ['inventory-activity', itemId] as const;
 
 export function useInventoryItems() {
   return useQuery({
     queryKey: INVENTORY_QUERY_KEY,
     queryFn: fetchInventoryItems,
+  });
+}
+
+export function useInventoryActivity(itemId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: inventoryActivityQueryKey(itemId ?? ''),
+    queryFn: () => fetchInventoryActivity(itemId!),
+    enabled: enabled && !!itemId,
   });
 }
 
@@ -39,12 +49,14 @@ export function useUpdateInventoryItem() {
       patch,
       operatore,
       previous,
+      skipActivityLog,
     }: {
       id: string;
       patch: Partial<InventoryRowInput>;
       operatore: InventoryMutationOptions['operatore'];
       previous?: UnifiedItem;
-    }) => updateInventoryItem(id, patch, { operatore, previous }),
+      skipActivityLog?: boolean;
+    }) => updateInventoryItem(id, patch, { operatore, previous, skipActivityLog }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
   });
 }
