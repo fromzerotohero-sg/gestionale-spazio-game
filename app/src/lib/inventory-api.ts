@@ -11,6 +11,7 @@ import {
   isSupabaseConfigured,
   supabaseConfigError,
 } from "@/lib/supabase";
+import { NULLAOSTA_PREZZO_INCREMENTO } from "@/lib/scheda-nullaosta";
 import type {
   InventoryActivityEntry,
   InventoryRowInput,
@@ -42,6 +43,7 @@ export function rowToUnified(row: InventoryRow): UnifiedItem {
     prezzoUnitario,
     totale: quantita * prezzoUnitario,
     note: row.note,
+    fornitore: row.fornitore ?? undefined,
     sede: row.sede,
     tipo: row.tipo ?? undefined,
     modello: row.modello ?? undefined,
@@ -53,6 +55,10 @@ export function rowToUnified(row: InventoryRow): UnifiedItem {
     bancaleVerificato: row.bancale_verificato,
     bancaleVerificatoAt: row.bancale_verificato_at ?? undefined,
     bancaleVerificatoDa: row.bancale_verificato_da ?? undefined,
+    schedaDocInviataAt: row.scheda_doc_inviata_at ?? undefined,
+    nullaostaRicevutoAt: row.nullaosta_ricevuto_at ?? undefined,
+    nullaostaPrezzoIncrementato: row.nullaosta_prezzo_incrementato,
+    nullaostaSegretariaOk: row.nullaosta_segretaria_ok,
     updatedAt: row.updated_at,
     lastModifiedBy: row.last_modified_by ?? undefined,
   };
@@ -70,6 +76,7 @@ function toDbRow(item: InventoryRowInput): InventoryInsert {
     quantita: item.quantita,
     prezzo_unitario: item.prezzoUnitario,
     note: item.note ?? "",
+    fornitore: item.fornitore?.trim() || null,
     sede: item.sede as InventoryInsert["sede"],
     tipo: item.tipo ?? null,
     modello: item.modello ?? null,
@@ -77,7 +84,7 @@ function toDbRow(item: InventoryRowInput): InventoryInsert {
     scaffale: item.scaffale ?? null,
     ripiano: item.ripiano ?? null,
     bancale: item.bancale ?? null,
-    grado: (item.grado as "A" | "B" | "C" | undefined) ?? null,
+    grado: item.grado ?? null,
     bancale_verificato: item.bancaleVerificato ?? false,
   };
 }
@@ -151,6 +158,18 @@ export async function createInventoryItem(
     ...toDbRow(item),
     last_modified_by: operatore,
   };
+  if (item.schedaDocInviataAt !== undefined) {
+    insertRow.scheda_doc_inviata_at = item.schedaDocInviataAt;
+  }
+  if (item.nullaostaRicevutoAt) {
+    insertRow.nullaosta_ricevuto_at = item.nullaostaRicevutoAt;
+    insertRow.prezzo_unitario =
+      item.prezzoUnitario + NULLAOSTA_PREZZO_INCREMENTO;
+    insertRow.nullaosta_prezzo_incrementato = true;
+  }
+  if (item.nullaostaSegretariaOk) {
+    insertRow.nullaosta_segretaria_ok = item.nullaostaSegretariaOk;
+  }
   if (item.bancaleVerificato) {
     insertRow.bancale_verificato = true;
     insertRow.bancale_verificato_at = new Date().toISOString();
@@ -193,6 +212,9 @@ export async function updateInventoryItem(
   if (patch.prezzoUnitario !== undefined)
     row.prezzo_unitario = patch.prezzoUnitario;
   if (patch.note !== undefined) row.note = patch.note;
+  if (patch.fornitore !== undefined) {
+    row.fornitore = patch.fornitore?.trim() || null;
+  }
   if (patch.sede !== undefined)
     row.sede = patch.sede as InventoryUpdate["sede"];
   if (patch.categoria !== undefined) row.category = patch.categoria;
@@ -202,8 +224,36 @@ export async function updateInventoryItem(
   if (patch.scaffale !== undefined) row.scaffale = patch.scaffale;
   if (patch.ripiano !== undefined) row.ripiano = patch.ripiano;
   if (patch.bancale !== undefined) row.bancale = patch.bancale;
-  if (patch.grado !== undefined)
-    row.grado = patch.grado as InventoryUpdate["grado"];
+  if (patch.grado !== undefined) row.grado = patch.grado;
+  if (patch.schedaDocInviataAt !== undefined) {
+    row.scheda_doc_inviata_at = patch.schedaDocInviataAt;
+  }
+  if (patch.nullaostaRicevutoAt !== undefined) {
+    row.nullaosta_ricevuto_at = patch.nullaostaRicevutoAt;
+    const ricevuto = patch.nullaostaRicevutoAt !== null;
+    const eraRicevuto = !!previous?.nullaostaRicevutoAt;
+    if (
+      ricevuto &&
+      !eraRicevuto &&
+      !previous?.nullaostaPrezzoIncrementato
+    ) {
+      const base =
+        patch.prezzoUnitario ??
+        previous?.prezzoUnitario ??
+        Number(row.prezzo_unitario ?? 0);
+      row.prezzo_unitario = base + NULLAOSTA_PREZZO_INCREMENTO;
+      row.nullaosta_prezzo_incrementato = true;
+    }
+    if (!ricevuto) {
+      row.nullaosta_segretaria_ok = false;
+    }
+  }
+  if (patch.nullaostaSegretariaOk !== undefined) {
+    row.nullaosta_segretaria_ok = patch.nullaostaSegretariaOk;
+  }
+  if (patch.nullaostaPrezzoIncrementato !== undefined) {
+    row.nullaosta_prezzo_incrementato = patch.nullaostaPrezzoIncrementato;
+  }
   if (patch.bancaleVerificato !== undefined) {
     row.bancale_verificato = patch.bancaleVerificato;
     const bancaleChanged =

@@ -22,6 +22,7 @@ export type Database = {
           quantita: number;
           prezzo_unitario: number;
           note: string;
+          fornitore: string | null;
           sede: "Magazzino Principale" | "Limena" | "Magazzino Angelo";
           tipo: string | null;
           modello: string | null;
@@ -29,7 +30,7 @@ export type Database = {
           scaffale: number | null;
           ripiano: number | null;
           bancale: string | null;
-          grado: "A" | "B" | "C" | null;
+          grado: string | null;
           bancale_verificato: boolean;
           bancale_verificato_at: string | null;
           bancale_verificato_da:
@@ -41,6 +42,10 @@ export type Database = {
           created_at: string;
           updated_at: string;
           last_modified_by: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          scheda_doc_inviata_at: string | null;
+          nullaosta_ricevuto_at: string | null;
+          nullaosta_prezzo_incrementato: boolean;
+          nullaosta_segretaria_ok: boolean;
         };
         Insert: {
           id: string;
@@ -54,6 +59,7 @@ export type Database = {
           quantita?: number;
           prezzo_unitario?: number;
           note?: string;
+          fornitore?: string | null;
           sede?: "Magazzino Principale" | "Limena" | "Magazzino Angelo";
           tipo?: string | null;
           modello?: string | null;
@@ -61,7 +67,7 @@ export type Database = {
           scaffale?: number | null;
           ripiano?: number | null;
           bancale?: string | null;
-          grado?: "A" | "B" | "C" | null;
+          grado?: string | null;
           bancale_verificato?: boolean;
           bancale_verificato_at?: string | null;
           bancale_verificato_da?:
@@ -73,6 +79,10 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           last_modified_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          scheda_doc_inviata_at?: string | null;
+          nullaosta_ricevuto_at?: string | null;
+          nullaosta_prezzo_incrementato?: boolean;
+          nullaosta_segretaria_ok?: boolean;
         };
         Update: {
           id?: string;
@@ -86,6 +96,7 @@ export type Database = {
           quantita?: number;
           prezzo_unitario?: number;
           note?: string;
+          fornitore?: string | null;
           sede?: "Magazzino Principale" | "Limena" | "Magazzino Angelo";
           tipo?: string | null;
           modello?: string | null;
@@ -93,7 +104,7 @@ export type Database = {
           scaffale?: number | null;
           ripiano?: number | null;
           bancale?: string | null;
-          grado?: "A" | "B" | "C" | null;
+          grado?: string | null;
           bancale_verificato?: boolean;
           bancale_verificato_at?: string | null;
           bancale_verificato_da?:
@@ -105,6 +116,10 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           last_modified_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          scheda_doc_inviata_at?: string | null;
+          nullaosta_ricevuto_at?: string | null;
+          nullaosta_prezzo_incrementato?: boolean;
+          nullaosta_segretaria_ok?: boolean;
         };
         Relationships: [];
       };

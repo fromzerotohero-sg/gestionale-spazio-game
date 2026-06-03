@@ -41,6 +41,7 @@ import {
   Clock,
   AlertCircle,
   Printer,
+  Truck,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,14 @@ import {
   CATEGORY_LABELS,
 } from "@/lib/inventory-export";
 import { parseInventoryImportFile } from "@/lib/inventory-import";
-import { type Category, type Sede, GRADI, SEDI } from "@/data/inventory";
+import { type Category, type Sede, SEDI } from "@/data/inventory";
+import {
+  GRADI,
+  GRADO_CUSTOM_VALUE,
+  gradoToFormState,
+  resolveGradoValue,
+  type GradoFormMode,
+} from "@/lib/inventory-grado";
 import {
   OPERATORS,
   getStoredOperatore,
@@ -100,6 +108,14 @@ import {
 } from "@/lib/inventory-tracking";
 import { MovimentiCronologia } from "@/components/inventory/MovimentiCronologia";
 import { InventoryLabelSheet } from "@/components/inventory/InventoryLabelSheet";
+import {
+  SchedaNullaostaPanel,
+  initSchedaNullaostaFromItem,
+} from "@/components/inventory/SchedaNullaostaPanel";
+import {
+  schedaNullaostaLabel,
+  toDateIso,
+} from "@/lib/scheda-nullaosta";
 import {
   findItemsForLabelPrint,
   triggerBrowserLabelPrint,
@@ -172,6 +188,7 @@ const COLUMN_LABELS: Record<string, string> = {
   ultimoAggiornamento: "Ultimo aggiornamento",
   verificaBancale: "Verificato",
   categoria: "Categoria",
+  schedaNullaosta: "Nullaosta",
 };
 
 const CATEGORY_COLORS: Record<Category, string> = {
@@ -384,6 +401,12 @@ export default function Inventario() {
   const [filterBancaleVerifica, setFilterBancaleVerifica] =
     useState<FilterBancaleVerifica>("tutti");
   const [modalBancaleVerificato, setModalBancaleVerificato] = useState(false);
+  const [modalGradoMode, setModalGradoMode] = useState<GradoFormMode>("A");
+  const [modalGradoCustom, setModalGradoCustom] = useState("");
+  const [modalDocInviataAt, setModalDocInviataAt] = useState<Date | undefined>();
+  const [modalNullaostaRicevuto, setModalNullaostaRicevuto] = useState(false);
+  const [modalNullaostaAt, setModalNullaostaAt] = useState<Date | undefined>();
+  const [modalSegretariaOk, setModalSegretariaOk] = useState(false);
   const [rimuoviVerificaOpen, setRimuoviVerificaOpen] = useState(false);
   const [pendingRimuoviVerifica, setPendingRimuoviVerifica] = useState<{
     source: "tabella" | "modale";
@@ -409,6 +432,7 @@ export default function Inventario() {
   );
   const [modalQuantita, setModalQuantita] = useState(1);
   const [modalPrezzo, setModalPrezzo] = useState(0);
+  const [modalFornitore, setModalFornitore] = useState("");
   const [modalNote, setModalNote] = useState("");
   const [movimentoQuantita, setMovimentoQuantita] = useState("");
   const [movimentoNote, setMovimentoNote] = useState("");
@@ -1016,6 +1040,39 @@ export default function Inventario() {
     [colH],
   );
 
+  const schedeNullaostaColumn = useMemo(
+    () =>
+      colH.display({
+        id: "schedaNullaosta",
+        header: "Nullaosta",
+        cell: ({ row }) => {
+          const label = schedaNullaostaLabel(row.original);
+          return (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded font-badge border text-xs max-w-[200px] truncate",
+                label.kind === "nullaosta" &&
+                  "bg-status-verde/15 text-status-verde border-status-verde/30",
+                label.kind === "doc" &&
+                  "bg-status-giallo/15 text-status-giallo border-status-giallo/30",
+                label.kind === "none" &&
+                  "bg-bg-hover text-text-muted border-border-default",
+              )}
+              title={label.text}
+            >
+              {label.text}
+              {row.original.nullaostaSegretariaOk && (
+                <span className="text-status-verde font-semibold">✓</span>
+              )}
+            </span>
+          );
+        },
+        size: 180,
+        enableSorting: false,
+      }),
+    [colH],
+  );
+
   const verificaBancaleColumn = useMemo(
     () =>
       colH.accessor((row) => row.bancaleVerificato ?? false, {
@@ -1203,6 +1260,7 @@ export default function Inventario() {
     return [
       ...baseColumns,
       noteColumn,
+      ...(activeTab === "schede" ? [schedeNullaostaColumn] : []),
       sedeColumn,
       verificaBancaleColumn,
       lastModifiedColumn,
@@ -1214,6 +1272,7 @@ export default function Inventario() {
     monitorExtraCols,
     categoriaColumn,
     noteColumn,
+    schedeNullaostaColumn,
     sedeColumn,
     verificaBancaleColumn,
     lastModifiedColumn,
@@ -1245,10 +1304,17 @@ export default function Inventario() {
     setEditingItem(null);
     setModalQuantita(1);
     setModalPrezzo(0);
+    setModalFornitore("");
     setModalNote("");
     setShowNoteSection(false);
     setShowCronologiaSection(false);
     setModalBancaleVerificato(false);
+    setModalGradoMode("A");
+    setModalGradoCustom("");
+    setModalDocInviataAt(undefined);
+    setModalNullaostaRicevuto(false);
+    setModalNullaostaAt(undefined);
+    setModalSegretariaOk(false);
     setMovimentoQuantita("");
     setMovimentoNote("");
     setItemModalOpen(true);
@@ -1259,10 +1325,19 @@ export default function Inventario() {
     setEditingItem(item);
     setModalQuantita(item.quantita);
     setModalPrezzo(item.prezzoUnitario);
+    setModalFornitore(item.fornitore || "");
     setModalNote(item.note || "");
     setShowNoteSection(false);
     setShowCronologiaSection(false);
     setModalBancaleVerificato(!!item.bancaleVerificato);
+    const gradoForm = gradoToFormState(item.grado);
+    setModalGradoMode(gradoForm.mode);
+    setModalGradoCustom(gradoForm.custom);
+    const nullaosta = initSchedaNullaostaFromItem(item);
+    setModalDocInviataAt(nullaosta.docInviataAt);
+    setModalNullaostaRicevuto(nullaosta.nullaostaRicevuto);
+    setModalNullaostaAt(nullaosta.nullaostaRicevutoAt);
+    setModalSegretariaOk(nullaosta.segretariaOk);
     setMovimentoQuantita("");
     setMovimentoNote("");
     setItemModalOpen(true);
@@ -1410,6 +1485,32 @@ export default function Inventario() {
       setEditingItem(null);
     };
 
+    const isMonitorForm =
+      activeTab === "monitor" || editingItem?.categoria === "monitor";
+    if (
+      isMonitorForm &&
+      modalGradoMode === GRADO_CUSTOM_VALUE &&
+      !modalGradoCustom.trim()
+    ) {
+      toast.error("Inserisci un grado personalizzato");
+      return;
+    }
+    const gradoSalvato = isMonitorForm
+      ? resolveGradoValue(modalGradoMode, modalGradoCustom, "A")
+      : undefined;
+
+    const isSchedeForm =
+      activeTab === "schede" || editingItem?.categoria === "schede";
+    const schedeNullaostaPatch = isSchedeForm
+      ? {
+          schedaDocInviataAt: toDateIso(modalDocInviataAt),
+          nullaostaRicevutoAt: modalNullaostaRicevuto
+            ? toDateIso(modalNullaostaAt ?? new Date())
+            : null,
+          nullaostaSegretariaOk: modalSegretariaOk,
+        }
+      : {};
+
     if (editingItem) {
       const previous = editingItem;
       updateItem.mutate(
@@ -1421,23 +1522,33 @@ export default function Inventario() {
             nome,
             quantita,
             prezzoUnitario: prezzo,
+            fornitore: modalFornitore.trim() || null,
             sede,
             tipo: (formData.get("tipo") as string) || editingItem.tipo,
             modello: (formData.get("modello") as string) || editingItem.modello,
             marca: (formData.get("marca") as string) || editingItem.marca,
-            grado: (formData.get("grado") as string) || editingItem.grado,
+            ...(isMonitorForm ? { grado: gradoSalvato } : {}),
             scaffale: Number(formData.get("scaffale")) || editingItem.scaffale,
             ripiano: Number(formData.get("ripiano")) || editingItem.ripiano,
             bancale: (formData.get("bancale") as string) || editingItem.bancale,
             bancaleVerificato: modalBancaleVerificato,
+            ...schedeNullaostaPatch,
           },
         },
         {
           onSuccess: (data) => {
             const action = resolveQuantityAction(previous.quantita, quantita);
-            toast.success(inventoryUpdateToast(op, data, action), {
-              duration: 5000,
-            });
+            const nullaostaNuovo =
+              isSchedeForm &&
+              modalNullaostaRicevuto &&
+              !previous.nullaostaRicevutoAt &&
+              data.nullaostaPrezzoIncrementato;
+            toast.success(
+              nullaostaNuovo
+                ? `${inventoryUpdateToast(op, data, action)} · Prezzo +100 € (nullaosta)`
+                : inventoryUpdateToast(op, data, action),
+              { duration: 5000 },
+            );
             onDone();
           },
           onError: () => toast.error("Errore aggiornamento articolo"),
@@ -1455,15 +1566,17 @@ export default function Inventario() {
             nome,
             quantita,
             prezzoUnitario: prezzo,
+            fornitore: modalFornitore.trim() || null,
             note: "",
             bancaleVerificato: modalBancaleVerificato,
             sede: sede || "Magazzino Principale",
+            ...(cat === "schede" ? schedeNullaostaPatch : {}),
             ...(cat === "monitor"
               ? {
                   tipo: (formData.get("tipo") as string) || "LED19",
                   modello: (formData.get("modello") as string) || "",
                   marca: (formData.get("marca") as string) || "",
-                  grado: (formData.get("grado") as string) || "A",
+                  grado: gradoSalvato ?? "A",
                   scaffale: Number(formData.get("scaffale")) || 1,
                   ripiano: Number(formData.get("ripiano")) || 1,
                   bancale: (formData.get("bancale") as string) || "A",
@@ -2315,6 +2428,10 @@ export default function Inventario() {
                         row.getIsSelected()
                           ? "bg-gradient-to-r from-[#D0FF5910] to-transparent border-l-[3px] border-l-accent-primary"
                           : "hover:bg-bg-hover border-l-[3px] border-l-transparent",
+                        row.original.categoria === "schede" &&
+                          row.original.nullaostaRicevutoAt &&
+                          !row.getIsSelected() &&
+                          "bg-status-verde/8 hover:bg-status-verde/12 border-l-status-verde/50",
                       )}
                     >
                       {row.getVisibleCells().map((cell) => (
@@ -2557,6 +2674,24 @@ export default function Inventario() {
               </div>
             </div>
 
+            <div className="rounded-lg border border-border-subtle bg-bg-elevated/40 p-3">
+              <Label className="text-text-secondary mb-1.5 flex items-center gap-2">
+                <Truck size={16} className="text-text-muted" />
+                Fornitore
+              </Label>
+              <Input
+                value={modalFornitore}
+                onChange={(e) => setModalFornitore(e.target.value)}
+                placeholder="es. nome fornitore o ragione sociale"
+                className="bg-bg-elevated border-border-default"
+                disabled={!operatore}
+              />
+              <p className="font-caption text-text-muted mt-1.5">
+                Identifica da chi proviene l&apos;articolo (salvato con
+                Salva modifiche).
+              </p>
+            </div>
+
             {editingItem && (
               <div className="rounded-lg border border-border-subtle bg-bg-elevated/40 p-3">
                 <button
@@ -2705,9 +2840,10 @@ export default function Inventario() {
                       Grado *
                     </Label>
                     <select
-                      name="grado"
-                      defaultValue={editingItem?.grado || "A"}
-                      required
+                      value={modalGradoMode}
+                      onChange={(e) =>
+                        setModalGradoMode(e.target.value as GradoFormMode)
+                      }
                       className="h-9 w-full rounded-md border border-border-default bg-bg-elevated px-3 text-text-primary text-sm focus:border-accent-primary focus:outline-none"
                     >
                       {GRADI.map((g) => (
@@ -2715,7 +2851,17 @@ export default function Inventario() {
                           {g}
                         </option>
                       ))}
+                      <option value={GRADO_CUSTOM_VALUE}>Altro (testo libero)</option>
                     </select>
+                    {modalGradoMode === GRADO_CUSTOM_VALUE && (
+                      <Input
+                        value={modalGradoCustom}
+                        onChange={(e) => setModalGradoCustom(e.target.value)}
+                        placeholder="Scrivi il grado..."
+                        required
+                        className="mt-2 bg-bg-elevated border-border-default"
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -2793,6 +2939,24 @@ export default function Inventario() {
               item={editingItem}
               disabled={!operatore}
             />
+
+            {(activeTab === "schede" ||
+              editingItem?.categoria === "schede") && (
+              <SchedaNullaostaPanel
+                docInviataAt={modalDocInviataAt}
+                onDocInviataAtChange={setModalDocInviataAt}
+                nullaostaRicevuto={modalNullaostaRicevuto}
+                onNullaostaRicevutoChange={setModalNullaostaRicevuto}
+                nullaostaRicevutoAt={modalNullaostaAt}
+                onNullaostaRicevutoAtChange={setModalNullaostaAt}
+                segretariaOk={modalSegretariaOk}
+                onSegretariaOkChange={setModalSegretariaOk}
+                prezzoIncrementato={
+                  editingItem?.nullaostaPrezzoIncrementato ?? false
+                }
+                disabled={!operatore}
+              />
+            )}
 
             <div>
               <Label className="text-text-secondary mb-1.5 block">Sede *</Label>

@@ -10,6 +10,7 @@ export interface UnifiedItem {
   prezzoUnitario: number;
   totale: number;
   note: string;
+  fornitore?: string;
   sede: string;
   tipo?: string;
   modello?: string;
@@ -21,6 +22,10 @@ export interface UnifiedItem {
   bancaleVerificato?: boolean;
   bancaleVerificatoAt?: string;
   bancaleVerificatoDa?: Operatore;
+  schedaDocInviataAt?: string;
+  nullaostaRicevutoAt?: string;
+  nullaostaPrezzoIncrementato?: boolean;
+  nullaostaSegretariaOk?: boolean;
   updatedAt?: string;
   lastModifiedBy?: Operatore;
 }
@@ -32,6 +37,7 @@ export type InventoryRowInput = {
   quantita: number;
   prezzoUnitario: number;
   note: string;
+  fornitore?: string | null;
   sede: Sede | string;
   tipo?: string;
   modello?: string;
@@ -41,6 +47,10 @@ export type InventoryRowInput = {
   bancale?: string;
   grado?: string;
   bancaleVerificato?: boolean;
+  schedaDocInviataAt?: string | null;
+  nullaostaRicevutoAt?: string | null;
+  nullaostaPrezzoIncrementato?: boolean;
+  nullaostaSegretariaOk?: boolean;
 };
 
 export type InventoryActivityEntry = {
