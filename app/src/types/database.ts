@@ -159,6 +159,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      schede_prenotazioni: {
+        Row: {
+          id: string;
+          numero_scheda: string;
+          cliente: string;
+          operatore: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          numero_scheda: string;
+          cliente: string;
+          operatore?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          numero_scheda?: string;
+          cliente?: string;
+          operatore?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       repairs: {
         Row: Record<string, unknown>;
         Insert: Record<string, unknown>;

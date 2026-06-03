@@ -58,7 +58,6 @@ export function rowToUnified(row: InventoryRow): UnifiedItem {
     schedaDocInviataAt: row.scheda_doc_inviata_at ?? undefined,
     nullaostaRicevutoAt: row.nullaosta_ricevuto_at ?? undefined,
     nullaostaPrezzoIncrementato: row.nullaosta_prezzo_incrementato,
-    nullaostaSegretariaOk: row.nullaosta_segretaria_ok,
     updatedAt: row.updated_at,
     lastModifiedBy: row.last_modified_by ?? undefined,
   };
@@ -167,9 +166,6 @@ export async function createInventoryItem(
       item.prezzoUnitario + NULLAOSTA_PREZZO_INCREMENTO;
     insertRow.nullaosta_prezzo_incrementato = true;
   }
-  if (item.nullaostaSegretariaOk) {
-    insertRow.nullaosta_segretaria_ok = item.nullaostaSegretariaOk;
-  }
   if (item.bancaleVerificato) {
     insertRow.bancale_verificato = true;
     insertRow.bancale_verificato_at = new Date().toISOString();
@@ -244,12 +240,6 @@ export async function updateInventoryItem(
       row.prezzo_unitario = base + NULLAOSTA_PREZZO_INCREMENTO;
       row.nullaosta_prezzo_incrementato = true;
     }
-    if (!ricevuto) {
-      row.nullaosta_segretaria_ok = false;
-    }
-  }
-  if (patch.nullaostaSegretariaOk !== undefined) {
-    row.nullaosta_segretaria_ok = patch.nullaostaSegretariaOk;
   }
   if (patch.nullaostaPrezzoIncrementato !== undefined) {
     row.nullaosta_prezzo_incrementato = patch.nullaostaPrezzoIncrementato;

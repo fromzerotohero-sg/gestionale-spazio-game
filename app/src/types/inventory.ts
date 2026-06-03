@@ -25,7 +25,6 @@ export interface UnifiedItem {
   schedaDocInviataAt?: string;
   nullaostaRicevutoAt?: string;
   nullaostaPrezzoIncrementato?: boolean;
-  nullaostaSegretariaOk?: boolean;
   updatedAt?: string;
   lastModifiedBy?: Operatore;
 }
@@ -50,7 +49,6 @@ export type InventoryRowInput = {
   schedaDocInviataAt?: string | null;
   nullaostaRicevutoAt?: string | null;
   nullaostaPrezzoIncrementato?: boolean;
-  nullaostaSegretariaOk?: boolean;
 };
 
 export type InventoryActivityEntry = {

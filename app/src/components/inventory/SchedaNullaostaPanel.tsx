@@ -24,8 +24,6 @@ type Props = {
   onNullaostaRicevutoChange: (checked: boolean) => void;
   nullaostaRicevutoAt: Date | undefined;
   onNullaostaRicevutoAtChange: (date: Date | undefined) => void;
-  segretariaOk: boolean;
-  onSegretariaOkChange: (checked: boolean) => void;
   prezzoIncrementato: boolean;
   disabled?: boolean;
 };
@@ -37,8 +35,6 @@ export function SchedaNullaostaPanel({
   onNullaostaRicevutoChange,
   nullaostaRicevutoAt,
   onNullaostaRicevutoAtChange,
-  segretariaOk,
-  onSegretariaOkChange,
   prezzoIncrementato,
   disabled,
 }: Props) {
@@ -124,7 +120,6 @@ export function SchedaNullaostaPanel({
             }
             if (!checked) {
               onNullaostaRicevutoAtChange(undefined);
-              onSegretariaOkChange(false);
             }
           }}
         />
@@ -184,25 +179,6 @@ export function SchedaNullaostaPanel({
           )}
         </div>
       </div>
-
-      <div className="flex items-center gap-3 pt-1 border-t border-border-subtle/80">
-        <Checkbox
-          id="nullaosta-segretaria"
-          checked={segretariaOk}
-          disabled={disabled || !nullaostaRicevuto}
-          onCheckedChange={(v) => onSegretariaOkChange(v === true)}
-        />
-        <Label
-          htmlFor="nullaosta-segretaria"
-          className={cn(
-            "text-sm cursor-pointer",
-            !nullaostaRicevuto && "text-text-muted",
-            segretariaOk && "text-status-verde font-medium",
-          )}
-        >
-          Confermato segreteria
-        </Label>
-      </div>
     </div>
   );
 }
@@ -210,12 +186,10 @@ export function SchedaNullaostaPanel({
 export function initSchedaNullaostaFromItem(item?: {
   schedaDocInviataAt?: string;
   nullaostaRicevutoAt?: string;
-  nullaostaSegretariaOk?: boolean;
 }) {
   return {
     docInviataAt: parseDateOnly(item?.schedaDocInviataAt),
     nullaostaRicevuto: !!item?.nullaostaRicevutoAt,
     nullaostaRicevutoAt: parseDateOnly(item?.nullaostaRicevutoAt),
-    segretariaOk: !!item?.nullaostaSegretariaOk,
   };
 }

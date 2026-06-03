@@ -112,6 +112,7 @@ import {
   SchedaNullaostaPanel,
   initSchedaNullaostaFromItem,
 } from "@/components/inventory/SchedaNullaostaPanel";
+import { SchedePrenotatePanel } from "@/components/inventory/SchedePrenotatePanel";
 import {
   schedaNullaostaLabel,
   toDateIso,
@@ -406,7 +407,6 @@ export default function Inventario() {
   const [modalDocInviataAt, setModalDocInviataAt] = useState<Date | undefined>();
   const [modalNullaostaRicevuto, setModalNullaostaRicevuto] = useState(false);
   const [modalNullaostaAt, setModalNullaostaAt] = useState<Date | undefined>();
-  const [modalSegretariaOk, setModalSegretariaOk] = useState(false);
   const [rimuoviVerificaOpen, setRimuoviVerificaOpen] = useState(false);
   const [pendingRimuoviVerifica, setPendingRimuoviVerifica] = useState<{
     source: "tabella" | "modale";
@@ -695,10 +695,12 @@ export default function Inventario() {
       data = data.filter((i) => i.sede === filterSede);
     }
 
-    if (filterBancaleVerifica === "verificati") {
-      data = data.filter((i) => i.bancaleVerificato);
-    } else if (filterBancaleVerifica === "da_verificare") {
-      data = data.filter((i) => !i.bancaleVerificato);
+    if (activeTab !== "schede") {
+      if (filterBancaleVerifica === "verificati") {
+        data = data.filter((i) => i.bancaleVerificato);
+      } else if (filterBancaleVerifica === "da_verificare") {
+        data = data.filter((i) => !i.bancaleVerificato);
+      }
     }
 
     return data;
@@ -1061,9 +1063,6 @@ export default function Inventario() {
               title={label.text}
             >
               {label.text}
-              {row.original.nullaostaSegretariaOk && (
-                <span className="text-status-verde font-semibold">✓</span>
-              )}
             </span>
           );
         },
@@ -1257,10 +1256,20 @@ export default function Inventario() {
       ];
     }
 
+    if (activeTab === "schede") {
+      return [
+        ...baseColumns,
+        noteColumn,
+        schedeNullaostaColumn,
+        sedeColumn,
+        lastModifiedColumn,
+        actionsColumn,
+      ];
+    }
+
     return [
       ...baseColumns,
       noteColumn,
-      ...(activeTab === "schede" ? [schedeNullaostaColumn] : []),
       sedeColumn,
       verificaBancaleColumn,
       lastModifiedColumn,
@@ -1314,7 +1323,6 @@ export default function Inventario() {
     setModalDocInviataAt(undefined);
     setModalNullaostaRicevuto(false);
     setModalNullaostaAt(undefined);
-    setModalSegretariaOk(false);
     setMovimentoQuantita("");
     setMovimentoNote("");
     setItemModalOpen(true);
@@ -1337,7 +1345,6 @@ export default function Inventario() {
     setModalDocInviataAt(nullaosta.docInviataAt);
     setModalNullaostaRicevuto(nullaosta.nullaostaRicevuto);
     setModalNullaostaAt(nullaosta.nullaostaRicevutoAt);
-    setModalSegretariaOk(nullaosta.segretariaOk);
     setMovimentoQuantita("");
     setMovimentoNote("");
     setItemModalOpen(true);
@@ -1507,7 +1514,6 @@ export default function Inventario() {
           nullaostaRicevutoAt: modalNullaostaRicevuto
             ? toDateIso(modalNullaostaAt ?? new Date())
             : null,
-          nullaostaSegretariaOk: modalSegretariaOk,
         }
       : {};
 
@@ -1531,7 +1537,9 @@ export default function Inventario() {
             scaffale: Number(formData.get("scaffale")) || editingItem.scaffale,
             ripiano: Number(formData.get("ripiano")) || editingItem.ripiano,
             bancale: (formData.get("bancale") as string) || editingItem.bancale,
-            bancaleVerificato: modalBancaleVerificato,
+            ...(editingItem.categoria !== "schede"
+              ? { bancaleVerificato: modalBancaleVerificato }
+              : {}),
             ...schedeNullaostaPatch,
           },
         },
@@ -1568,7 +1576,9 @@ export default function Inventario() {
             prezzoUnitario: prezzo,
             fornitore: modalFornitore.trim() || null,
             note: "",
-            bancaleVerificato: modalBancaleVerificato,
+            ...(cat !== "schede"
+              ? { bancaleVerificato: modalBancaleVerificato }
+              : {}),
             sede: sede || "Magazzino Principale",
             ...(cat === "schede" ? schedeNullaostaPatch : {}),
             ...(cat === "monitor"
@@ -1616,7 +1626,7 @@ export default function Inventario() {
     filterPriceMax ||
     filterGrado ||
     filterSede ||
-    filterBancaleVerifica !== "tutti",
+    (activeTab !== "schede" && filterBancaleVerifica !== "tutti"),
   );
 
   function handleExport(scope: ExportScope) {
@@ -1972,6 +1982,15 @@ export default function Inventario() {
         </div>
       </motion.div>
 
+      {activeTab === "schede" && (
+        <motion.div {...fadeInUp} transition={{ ...fadeInUp.transition, delay: 0.08 }}>
+          <SchedePrenotatePanel
+            operatore={operatore}
+            requireOperatore={requireOperatore}
+          />
+        </motion.div>
+      )}
+
       {/* ═══ Search & Filter Bar ═══ */}
       <motion.div
         {...fadeInUp}
@@ -2051,6 +2070,7 @@ export default function Inventario() {
           )}
         </div>
 
+        {activeTab !== "schede" && (
         <div className="flex items-center gap-1 shrink-0">
           {(
             [
@@ -2078,6 +2098,7 @@ export default function Inventario() {
             </Button>
           ))}
         </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 shrink-0 border-l border-border-subtle pl-3">
           <Input
@@ -2355,7 +2376,7 @@ export default function Inventario() {
                 </button>
               </span>
             )}
-            {filterBancaleVerifica !== "tutti" && (
+            {activeTab !== "schede" && filterBancaleVerifica !== "tutti" && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent-muted border border-accent-primary/40 text-accent-primary font-body-small">
                 {filterBancaleVerifica === "verificati"
                   ? "Solo verificati"
@@ -2933,12 +2954,15 @@ export default function Inventario() {
               </>
             )}
 
-            <BancaleVerificaPanel
-              checked={modalBancaleVerificato}
-              onCheckedChange={handleModalBancaleVerificatoChange}
-              item={editingItem}
-              disabled={!operatore}
-            />
+            {activeTab !== "schede" &&
+              editingItem?.categoria !== "schede" && (
+                <BancaleVerificaPanel
+                  checked={modalBancaleVerificato}
+                  onCheckedChange={handleModalBancaleVerificatoChange}
+                  item={editingItem}
+                  disabled={!operatore}
+                />
+              )}
 
             {(activeTab === "schede" ||
               editingItem?.categoria === "schede") && (
@@ -2949,8 +2973,6 @@ export default function Inventario() {
                 onNullaostaRicevutoChange={setModalNullaostaRicevuto}
                 nullaostaRicevutoAt={modalNullaostaAt}
                 onNullaostaRicevutoAtChange={setModalNullaostaAt}
-                segretariaOk={modalSegretariaOk}
-                onSegretariaOkChange={setModalSegretariaOk}
                 prezzoIncrementato={
                   editingItem?.nullaostaPrezzoIncrementato ?? false
                 }
