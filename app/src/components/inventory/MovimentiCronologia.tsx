@@ -1,8 +1,17 @@
-import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronUp, Clock } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { formatAbsoluteDateTime, formatRelativeTime } from '@/lib/inventory-tracking';
-import type { InventoryActivityEntry } from '@/types/inventory';
-import { Spinner } from '@/components/ui/spinner';
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  formatAbsoluteDateTime,
+  formatRelativeTime,
+} from "@/lib/inventory-tracking";
+import type { InventoryActivityEntry } from "@/types/inventory";
+import { Spinner } from "@/components/ui/spinner";
 
 export function MovimentiCronologia({
   entries,
@@ -24,7 +33,9 @@ export function MovimentiCronologia({
         onClick={() => onOpenChange(!open)}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
-        <span className="font-caption text-text-muted uppercase tracking-wide">Cronologia movimenti</span>
+        <span className="font-caption text-text-muted uppercase tracking-wide">
+          Cronologia movimenti
+        </span>
         {open ? (
           <ChevronUp size={16} className="text-text-muted shrink-0" />
         ) : (
@@ -36,7 +47,7 @@ export function MovimentiCronologia({
         {open && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.15 }}
             className="overflow-hidden"
@@ -48,10 +59,16 @@ export function MovimentiCronologia({
                 </div>
               )}
 
-              {isError && <p className="font-caption text-status-rosso">Cronologia non disponibile.</p>}
+              {isError && (
+                <p className="font-caption text-status-rosso">
+                  Cronologia non disponibile.
+                </p>
+              )}
 
               {!isLoading && !isError && entries.length === 0 && (
-                <p className="font-caption text-text-muted">Nessun movimento.</p>
+                <p className="font-caption text-text-muted">
+                  Nessun movimento.
+                </p>
               )}
 
               {!isLoading && !isError && entries.length > 0 && (
@@ -61,13 +78,26 @@ export function MovimentiCronologia({
                       key={row.id}
                       className="flex items-start gap-2 py-1 border-b border-border-subtle/50 last:border-0"
                     >
-                      {row.action === 'prelievo' ? (
-                        <ArrowDownRight size={13} className="text-status-rosso shrink-0 mt-0.5" />
+                      {row.action === "prelievo" ? (
+                        <ArrowDownRight
+                          size={13}
+                          className="text-status-rosso shrink-0 mt-0.5"
+                        />
                       ) : (
-                        <ArrowUpRight size={13} className="text-status-verde shrink-0 mt-0.5" />
+                        <ArrowUpRight
+                          size={13}
+                          className="text-status-verde shrink-0 mt-0.5"
+                        />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="font-caption text-text-secondary leading-snug">{row.summary}</p>
+                        <p className="font-caption text-text-secondary leading-snug">
+                          {row.summary}
+                        </p>
+                        {row.note && (
+                          <p className="font-caption text-text-primary/85 mt-1 break-words">
+                            Nota: {row.note}
+                          </p>
+                        )}
                         <p
                           className="font-caption text-text-muted mt-0.5"
                           title={formatAbsoluteDateTime(row.createdAt)}

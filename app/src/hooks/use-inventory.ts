@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createInventoryItem,
   deleteInventoryItems,
@@ -6,11 +6,12 @@ import {
   fetchInventoryItems,
   updateInventoryItem,
   type InventoryMutationOptions,
-} from '@/lib/inventory-api';
-import type { InventoryRowInput, UnifiedItem } from '@/types/inventory';
+} from "@/lib/inventory-api";
+import type { InventoryRowInput, UnifiedItem } from "@/types/inventory";
 
-export const INVENTORY_QUERY_KEY = ['inventory'] as const;
-export const inventoryActivityQueryKey = (itemId: string) => ['inventory-activity', itemId] as const;
+export const INVENTORY_QUERY_KEY = ["inventory"] as const;
+export const inventoryActivityQueryKey = (itemId: string) =>
+  ["inventory-activity", itemId] as const;
 
 export function useInventoryItems() {
   return useQuery({
@@ -21,7 +22,7 @@ export function useInventoryItems() {
 
 export function useInventoryActivity(itemId: string | null, enabled = true) {
   return useQuery({
-    queryKey: inventoryActivityQueryKey(itemId ?? ''),
+    queryKey: inventoryActivityQueryKey(itemId ?? ""),
     queryFn: () => fetchInventoryActivity(itemId!),
     enabled: enabled && !!itemId,
   });
@@ -35,9 +36,10 @@ export function useCreateInventoryItem() {
       operatore,
     }: {
       item: InventoryRowInput;
-      operatore: InventoryMutationOptions['operatore'];
+      operatore: InventoryMutationOptions["operatore"];
     }) => createInventoryItem(item, { operatore }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
   });
 }
 
@@ -50,14 +52,23 @@ export function useUpdateInventoryItem() {
       operatore,
       previous,
       skipActivityLog,
+      activityNote,
     }: {
       id: string;
       patch: Partial<InventoryRowInput>;
-      operatore: InventoryMutationOptions['operatore'];
+      operatore: InventoryMutationOptions["operatore"];
       previous?: UnifiedItem;
       skipActivityLog?: boolean;
-    }) => updateInventoryItem(id, patch, { operatore, previous, skipActivityLog }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
+      activityNote?: string;
+    }) =>
+      updateInventoryItem(id, patch, {
+        operatore,
+        previous,
+        skipActivityLog,
+        activityNote,
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
   });
 }
 
@@ -70,9 +81,10 @@ export function useDeleteInventoryItems() {
       items,
     }: {
       ids: string[];
-      operatore: InventoryMutationOptions['operatore'];
+      operatore: InventoryMutationOptions["operatore"];
       items: UnifiedItem[];
     }) => deleteInventoryItems(ids, { operatore, items }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
   });
 }

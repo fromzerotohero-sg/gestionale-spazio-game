@@ -1,23 +1,34 @@
-import type { Category } from '@/data/inventory';
-import type { Operatore } from '@/data/operators';
+import type { Category } from "@/data/inventory";
+import type { Operatore } from "@/data/operators";
 import {
   buildActivitySummary,
   logInventoryActivity,
   resolveQuantityAction,
   type InventoryAction,
-} from '@/lib/inventory-tracking';
-import { getSupabase, isSupabaseConfigured, supabaseConfigError } from '@/lib/supabase';
-import type { InventoryActivityEntry, InventoryRowInput, UnifiedItem } from '@/types/inventory';
-import type { Database, Tables } from '@/types/database';
+} from "@/lib/inventory-tracking";
+import {
+  getSupabase,
+  isSupabaseConfigured,
+  supabaseConfigError,
+} from "@/lib/supabase";
+import type {
+  InventoryActivityEntry,
+  InventoryRowInput,
+  UnifiedItem,
+} from "@/types/inventory";
+import type { Database, Tables } from "@/types/database";
 
-type InventoryRow = Tables<'inventory_items'>;
-type InventoryInsert = Database['public']['Tables']['inventory_items']['Insert'];
-type InventoryUpdate = Database['public']['Tables']['inventory_items']['Update'];
+type InventoryRow = Tables<"inventory_items">;
+type InventoryInsert =
+  Database["public"]["Tables"]["inventory_items"]["Insert"];
+type InventoryUpdate =
+  Database["public"]["Tables"]["inventory_items"]["Update"];
 
 export type InventoryMutationOptions = {
   operatore: Operatore;
   previous?: UnifiedItem;
   skipActivityLog?: boolean;
+  activityNote?: string;
 };
 
 export function rowToUnified(row: InventoryRow): UnifiedItem {
@@ -48,22 +59,25 @@ export function rowToUnified(row: InventoryRow): UnifiedItem {
 }
 
 function toDbRow(item: InventoryRowInput): InventoryInsert {
-  const isMonitor = item.categoria === 'monitor';
+  const isMonitor = item.categoria === "monitor";
   return {
     id: item.id,
     category: item.categoria,
-    nome: isMonitor && item.marca && item.modello ? `${item.marca} ${item.modello}` : item.nome,
+    nome:
+      isMonitor && item.marca && item.modello
+        ? `${item.marca} ${item.modello}`
+        : item.nome,
     quantita: item.quantita,
     prezzo_unitario: item.prezzoUnitario,
-    note: item.note ?? '',
-    sede: item.sede as InventoryInsert['sede'],
+    note: item.note ?? "",
+    sede: item.sede as InventoryInsert["sede"],
     tipo: item.tipo ?? null,
     modello: item.modello ?? null,
     marca: item.marca ?? null,
     scaffale: item.scaffale ?? null,
     ripiano: item.ripiano ?? null,
     bancale: item.bancale ?? null,
-    grado: (item.grado as 'A' | 'B' | 'C' | undefined) ?? null,
+    grado: (item.grado as "A" | "B" | "C" | undefined) ?? null,
     bancale_verificato: item.bancaleVerificato ?? false,
   };
 }
@@ -74,7 +88,8 @@ async function recordActivity(
   action: InventoryAction,
   summary: string,
   quantityBefore?: number,
-  quantityAfter?: number
+  quantityAfter?: number,
+  note?: string | null,
 ): Promise<void> {
   await logInventoryActivity({
     itemId,
@@ -83,19 +98,22 @@ async function recordActivity(
     summary,
     quantityBefore,
     quantityAfter,
+    note,
   });
 }
 
-export async function fetchInventoryActivity(itemId: string): Promise<InventoryActivityEntry[]> {
+export async function fetchInventoryActivity(
+  itemId: string,
+): Promise<InventoryActivityEntry[]> {
   if (!isSupabaseConfigured) {
-    throw new Error(supabaseConfigError ?? 'Supabase non configurato');
+    throw new Error(supabaseConfigError ?? "Supabase non configurato");
   }
   const { data, error } = await getSupabase()
-    .from('inventory_activity')
-    .select('*')
-    .eq('item_id', itemId)
-    .in('action', ['prelievo', 'carico'])
-    .order('created_at', { ascending: false })
+    .from("inventory_activity")
+    .select("*")
+    .eq("item_id", itemId)
+    .in("action", ["prelievo", "carico"])
+    .order("created_at", { ascending: false })
     .limit(40);
 
   if (error) throw error;
@@ -107,18 +125,19 @@ export async function fetchInventoryActivity(itemId: string): Promise<InventoryA
     quantityBefore: row.quantity_before,
     quantityAfter: row.quantity_after,
     summary: row.summary,
+    note: row.note,
     createdAt: row.created_at,
   }));
 }
 
 export async function fetchInventoryItems(): Promise<UnifiedItem[]> {
   if (!isSupabaseConfigured) {
-    throw new Error(supabaseConfigError ?? 'Supabase non configurato');
+    throw new Error(supabaseConfigError ?? "Supabase non configurato");
   }
   const { data, error } = await getSupabase()
-    .from('inventory_items')
-    .select('*')
-    .order('id', { ascending: true });
+    .from("inventory_items")
+    .select("*")
+    .order("id", { ascending: true });
 
   if (error) throw error;
   return (data ?? []).map(rowToUnified);
@@ -126,9 +145,12 @@ export async function fetchInventoryItems(): Promise<UnifiedItem[]> {
 
 export async function createInventoryItem(
   item: InventoryRowInput,
-  { operatore }: InventoryMutationOptions
+  { operatore }: InventoryMutationOptions,
 ): Promise<UnifiedItem> {
-  const insertRow: InventoryInsert = { ...toDbRow(item), last_modified_by: operatore };
+  const insertRow: InventoryInsert = {
+    ...toDbRow(item),
+    last_modified_by: operatore,
+  };
   if (item.bancaleVerificato) {
     insertRow.bancale_verificato = true;
     insertRow.bancale_verificato_at = new Date().toISOString();
@@ -136,7 +158,7 @@ export async function createInventoryItem(
   }
 
   const { data, error } = await getSupabase()
-    .from('inventory_items')
+    .from("inventory_items")
     .insert(insertRow)
     .select()
     .single();
@@ -147,10 +169,10 @@ export async function createInventoryItem(
   await recordActivity(
     unified.id,
     operatore,
-    'creazione',
-    buildActivitySummary('creazione', unified.nome),
+    "creazione",
+    buildActivitySummary("creazione", unified.nome),
     undefined,
-    unified.quantita
+    unified.quantita,
   );
   return unified;
 }
@@ -158,14 +180,21 @@ export async function createInventoryItem(
 export async function updateInventoryItem(
   id: string,
   patch: Partial<InventoryRowInput>,
-  { operatore, previous, skipActivityLog }: InventoryMutationOptions
+  {
+    operatore,
+    previous,
+    skipActivityLog,
+    activityNote,
+  }: InventoryMutationOptions,
 ): Promise<UnifiedItem> {
   const row: InventoryUpdate = { last_modified_by: operatore };
   if (patch.nome !== undefined) row.nome = patch.nome;
   if (patch.quantita !== undefined) row.quantita = patch.quantita;
-  if (patch.prezzoUnitario !== undefined) row.prezzo_unitario = patch.prezzoUnitario;
+  if (patch.prezzoUnitario !== undefined)
+    row.prezzo_unitario = patch.prezzoUnitario;
   if (patch.note !== undefined) row.note = patch.note;
-  if (patch.sede !== undefined) row.sede = patch.sede as InventoryUpdate['sede'];
+  if (patch.sede !== undefined)
+    row.sede = patch.sede as InventoryUpdate["sede"];
   if (patch.categoria !== undefined) row.category = patch.categoria;
   if (patch.tipo !== undefined) row.tipo = patch.tipo;
   if (patch.modello !== undefined) row.modello = patch.modello;
@@ -173,7 +202,8 @@ export async function updateInventoryItem(
   if (patch.scaffale !== undefined) row.scaffale = patch.scaffale;
   if (patch.ripiano !== undefined) row.ripiano = patch.ripiano;
   if (patch.bancale !== undefined) row.bancale = patch.bancale;
-  if (patch.grado !== undefined) row.grado = patch.grado as InventoryUpdate['grado'];
+  if (patch.grado !== undefined)
+    row.grado = patch.grado as InventoryUpdate["grado"];
   if (patch.bancaleVerificato !== undefined) {
     row.bancale_verificato = patch.bancaleVerificato;
     const bancaleChanged =
@@ -198,9 +228,9 @@ export async function updateInventoryItem(
   const action = resolveQuantityAction(qtyBefore, qtyAfter);
 
   const { data, error } = await getSupabase()
-    .from('inventory_items')
+    .from("inventory_items")
     .update(row)
-    .eq('id', id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -214,7 +244,8 @@ export async function updateInventoryItem(
       action,
       buildActivitySummary(action, itemName, qtyBefore, qtyAfter),
       qtyBefore,
-      qtyAfter
+      qtyAfter,
+      activityNote,
     );
   }
   return unified;
@@ -222,32 +253,42 @@ export async function updateInventoryItem(
 
 export async function deleteInventoryItems(
   ids: string[],
-  { operatore, items }: InventoryMutationOptions & { items: UnifiedItem[] }
+  { operatore, items }: InventoryMutationOptions & { items: UnifiedItem[] },
 ): Promise<void> {
   for (const item of items) {
     await recordActivity(
       item.id,
       operatore,
-      'eliminazione',
-      buildActivitySummary('eliminazione', item.nome),
+      "eliminazione",
+      buildActivitySummary("eliminazione", item.nome),
       item.quantita,
-      undefined
+      undefined,
     );
   }
 
-  const { error } = await getSupabase().from('inventory_items').delete().in('id', ids);
+  const { error } = await getSupabase()
+    .from("inventory_items")
+    .delete()
+    .in("id", ids);
   if (error) throw error;
 }
 
-export function nextInventoryId(items: UnifiedItem[], category: Category): string {
-  const prefix = { schede: 'SC', cabinet: 'CB', cambiamonete: 'CM', accessori: 'AC', monitor: 'MN' }[
-    category
-  ];
+export function nextInventoryId(
+  items: UnifiedItem[],
+  category: Category,
+): string {
+  const prefix = {
+    schede: "SC",
+    cabinet: "CB",
+    cambiamonete: "CM",
+    accessori: "AC",
+    monitor: "MN",
+  }[category];
   const maxNum = items
     .filter((i) => i.categoria === category)
     .reduce((max, i) => {
-      const num = parseInt(i.id.split('-')[1] ?? '0', 10);
+      const num = parseInt(i.id.split("-")[1] ?? "0", 10);
       return num > max ? num : max;
     }, 0);
-  return `${prefix}-${String(maxNum + 1).padStart(3, '0')}`;
+  return `${prefix}-${String(maxNum + 1).padStart(3, "0")}`;
 }

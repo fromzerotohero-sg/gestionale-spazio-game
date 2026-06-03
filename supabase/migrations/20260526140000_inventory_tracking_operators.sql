@@ -12,8 +12,12 @@ CREATE TABLE IF NOT EXISTS public.inventory_activity (
   quantity_before integer,
   quantity_after integer,
   summary text NOT NULL DEFAULT '',
+  note text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.inventory_activity
+  ADD COLUMN IF NOT EXISTS note text;
 
 CREATE INDEX IF NOT EXISTS idx_inventory_activity_item_created
   ON public.inventory_activity (item_id, created_at DESC);

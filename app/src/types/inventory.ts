@@ -1,6 +1,6 @@
-import type { Category, Sede } from '@/data/inventory';
-import type { Operatore } from '@/data/operators';
-import type { InventoryAction } from '@/lib/inventory-tracking';
+import type { Category, Sede } from "@/data/inventory";
+import type { Operatore } from "@/data/operators";
+import type { InventoryAction } from "@/lib/inventory-tracking";
 
 export interface UnifiedItem {
   id: string;
@@ -51,5 +51,6 @@ export type InventoryActivityEntry = {
   quantityBefore: number | null;
   quantityAfter: number | null;
   summary: string;
+  note?: string | null;
   createdAt: string;
 };
