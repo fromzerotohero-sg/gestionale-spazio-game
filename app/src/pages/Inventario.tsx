@@ -412,7 +412,8 @@ export default function Inventario() {
     useState<FilterBancaleVerifica>("tutti");
   const [modalBancaleVerificato, setModalBancaleVerificato] = useState(false);
   const [modalBancaleStatoOperativo, setModalBancaleStatoOperativo] =
-    useState<BancaleStatoOperativo>("a_riposo");
+    useState<BancaleStatoOperativo | null>(null);
+  const [modalBancaleStatoNota, setModalBancaleStatoNota] = useState("");
   const [modalGradoMode, setModalGradoMode] = useState<GradoFormMode>("A");
   const [modalGradoCustom, setModalGradoCustom] = useState("");
   const [modalDocInviataAt, setModalDocInviataAt] = useState<Date | undefined>();
@@ -1123,8 +1124,11 @@ export default function Inventario() {
         {
           id: "bancaleStatoOperativo",
           header: "Stato bancale",
-          cell: ({ getValue }) => (
-            <BancaleStatoOperativoBadge stato={getValue()} />
+          cell: ({ row, getValue }) => (
+            <BancaleStatoOperativoBadge
+              stato={getValue()}
+              nota={row.original.bancaleStatoOperativoNota}
+            />
           ),
           size: 168,
         },
@@ -1347,7 +1351,8 @@ export default function Inventario() {
     setShowNoteSection(false);
     setShowCronologiaSection(false);
     setModalBancaleVerificato(false);
-    setModalBancaleStatoOperativo("a_riposo");
+    setModalBancaleStatoOperativo(null);
+    setModalBancaleStatoNota("");
     setModalGradoMode("A");
     setModalGradoCustom("");
     setModalDocInviataAt(undefined);
@@ -1371,6 +1376,7 @@ export default function Inventario() {
     setModalBancaleStatoOperativo(
       normalizeBancaleStatoOperativo(item.bancaleStatoOperativo),
     );
+    setModalBancaleStatoNota(item.bancaleStatoOperativoNota || "");
     const gradoForm = gradoToFormState(item.grado);
     setModalGradoMode(gradoForm.mode);
     setModalGradoCustom(gradoForm.custom);
@@ -1551,7 +1557,10 @@ export default function Inventario() {
       : {};
 
     const monitorBancalePatch = isMonitorForm
-      ? { bancaleStatoOperativo: modalBancaleStatoOperativo }
+      ? {
+          bancaleStatoOperativo: modalBancaleStatoOperativo,
+          bancaleStatoOperativoNota: modalBancaleStatoNota.trim() || null,
+        }
       : {};
 
     if (editingItem) {
@@ -1629,6 +1638,7 @@ export default function Inventario() {
                   ripiano: Number(formData.get("ripiano")) || 1,
                   bancale: (formData.get("bancale") as string) || "A",
                   bancaleStatoOperativo: modalBancaleStatoOperativo,
+                  bancaleStatoOperativoNota: modalBancaleStatoNota.trim() || null,
                 }
               : {}),
           },
@@ -2990,12 +3000,14 @@ export default function Inventario() {
                     </select>
                   </div>
                 </div>
-                <BancaleStatoOperativoPanel
-                  value={modalBancaleStatoOperativo}
-                  onChange={setModalBancaleStatoOperativo}
-                  item={editingItem}
-                  disabled={!operatore}
-                />
+              <BancaleStatoOperativoPanel
+                stato={modalBancaleStatoOperativo}
+                onStatoChange={setModalBancaleStatoOperativo}
+                nota={modalBancaleStatoNota}
+                onNotaChange={setModalBancaleStatoNota}
+                item={editingItem}
+                disabled={!operatore}
+              />
               </>
             )}
 

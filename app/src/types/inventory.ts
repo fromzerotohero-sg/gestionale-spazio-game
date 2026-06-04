@@ -23,7 +23,8 @@ export interface UnifiedItem {
   bancaleVerificato?: boolean;
   bancaleVerificatoAt?: string;
   bancaleVerificatoDa?: Operatore;
-  bancaleStatoOperativo?: BancaleStatoOperativo;
+  bancaleStatoOperativo?: BancaleStatoOperativo | null;
+  bancaleStatoOperativoNota?: string;
   bancaleStatoOperativoAt?: string;
   bancaleStatoOperativoDa?: Operatore;
   schedaDocInviataAt?: string;
@@ -50,7 +51,8 @@ export type InventoryRowInput = {
   bancale?: string;
   grado?: string;
   bancaleVerificato?: boolean;
-  bancaleStatoOperativo?: BancaleStatoOperativo;
+  bancaleStatoOperativo?: BancaleStatoOperativo | null;
+  bancaleStatoOperativoNota?: string | null;
   schedaDocInviataAt?: string | null;
   nullaostaRicevutoAt?: string | null;
   nullaostaPrezzoIncrementato?: boolean;

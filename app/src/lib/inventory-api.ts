@@ -59,6 +59,7 @@ export function rowToUnified(row: InventoryRow): UnifiedItem {
     bancaleStatoOperativo: normalizeBancaleStatoOperativo(
       row.bancale_stato_operativo,
     ),
+    bancaleStatoOperativoNota: row.bancale_stato_operativo_note ?? undefined,
     bancaleStatoOperativoAt: row.bancale_stato_operativo_at ?? undefined,
     bancaleStatoOperativoDa: row.bancale_stato_operativo_da ?? undefined,
     schedaDocInviataAt: row.scheda_doc_inviata_at ?? undefined,
@@ -250,12 +251,16 @@ export async function updateInventoryItem(
   if (patch.nullaostaPrezzoIncrementato !== undefined) {
     row.nullaosta_prezzo_incrementato = patch.nullaostaPrezzoIncrementato;
   }
+  if (patch.bancaleStatoOperativoNota !== undefined) {
+    row.bancale_stato_operativo_note =
+      patch.bancaleStatoOperativoNota?.trim() || null;
+  }
   if (patch.bancaleStatoOperativo !== undefined) {
-    const stato = normalizeBancaleStatoOperativo(patch.bancaleStatoOperativo);
+    const stato = patch.bancaleStatoOperativo;
     row.bancale_stato_operativo = stato;
     const statoChanged =
       stato !== normalizeBancaleStatoOperativo(previous?.bancaleStatoOperativo);
-    if (stato === "a_riposo") {
+    if (!stato) {
       row.bancale_stato_operativo_at = null;
       row.bancale_stato_operativo_da = null;
     } else if (statoChanged || !previous?.bancaleStatoOperativoAt) {

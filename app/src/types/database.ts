@@ -39,7 +39,8 @@ export type Database = {
             | "Matteo"
             | "Paolo"
             | null;
-          bancale_stato_operativo: string;
+          bancale_stato_operativo: string | null;
+          bancale_stato_operativo_note: string | null;
           bancale_stato_operativo_at: string | null;
           bancale_stato_operativo_da:
             | "Giangrossi"
@@ -84,7 +85,8 @@ export type Database = {
             | "Matteo"
             | "Paolo"
             | null;
-          bancale_stato_operativo?: string;
+          bancale_stato_operativo?: string | null;
+          bancale_stato_operativo_note?: string | null;
           bancale_stato_operativo_at?: string | null;
           bancale_stato_operativo_da?:
             | "Giangrossi"
@@ -129,7 +131,8 @@ export type Database = {
             | "Matteo"
             | "Paolo"
             | null;
-          bancale_stato_operativo?: string;
+          bancale_stato_operativo?: string | null;
+          bancale_stato_operativo_note?: string | null;
           bancale_stato_operativo_at?: string | null;
           bancale_stato_operativo_da?:
             | "Giangrossi"
