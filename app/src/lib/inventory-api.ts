@@ -11,10 +11,7 @@ import {
   isSupabaseConfigured,
   supabaseConfigError,
 } from "@/lib/supabase";
-import {
-  isBancaleFuoriUbicazione,
-  normalizeBancaleStatoOperativo,
-} from "@/lib/bancale-stato-operativo";
+import { normalizeBancaleStatoOperativo } from "@/lib/bancale-stato-operativo";
 import { NULLAOSTA_PREZZO_INCREMENTO } from "@/lib/scheda-nullaosta";
 import type {
   InventoryActivityEntry,
@@ -73,26 +70,6 @@ export function rowToUnified(row: InventoryRow): UnifiedItem {
   };
 }
 
-function ubicazioneInsertFields(item: InventoryRowInput): Pick<
-  InventoryInsert,
-  "scaffale" | "ripiano" | "bancale" | "bancale_verificato"
-> {
-  if (isBancaleFuoriUbicazione(item.bancaleStatoOperativo)) {
-    return {
-      scaffale: null,
-      ripiano: null,
-      bancale: null,
-      bancale_verificato: false,
-    };
-  }
-  return {
-    scaffale: item.scaffale ?? null,
-    ripiano: item.ripiano ?? null,
-    bancale: item.bancale ?? null,
-    bancale_verificato: item.bancaleVerificato ?? false,
-  };
-}
-
 function toDbRow(item: InventoryRowInput): InventoryInsert {
   const isMonitor = item.categoria === "monitor";
   return {
@@ -110,8 +87,11 @@ function toDbRow(item: InventoryRowInput): InventoryInsert {
     tipo: item.tipo ?? null,
     modello: item.modello ?? null,
     marca: item.marca ?? null,
-    ...ubicazioneInsertFields(item),
+    scaffale: item.scaffale ?? null,
+    ripiano: item.ripiano ?? null,
+    bancale: item.bancale ?? null,
     grado: item.grado ?? null,
+    bancale_verificato: item.bancaleVerificato ?? false,
   };
 }
 
@@ -193,21 +173,7 @@ export async function createInventoryItem(
       item.prezzoUnitario + NULLAOSTA_PREZZO_INCREMENTO;
     insertRow.nullaosta_prezzo_incrementato = true;
   }
-  if (item.bancaleStatoOperativo !== undefined) {
-    insertRow.bancale_stato_operativo = item.bancaleStatoOperativo;
-    if (item.bancaleStatoOperativo) {
-      insertRow.bancale_stato_operativo_at = new Date().toISOString();
-      insertRow.bancale_stato_operativo_da = operatore;
-    }
-  }
-  if (item.bancaleStatoOperativoNota !== undefined) {
-    insertRow.bancale_stato_operativo_note =
-      item.bancaleStatoOperativoNota?.trim() || null;
-  }
-  if (
-    item.bancaleVerificato &&
-    !isBancaleFuoriUbicazione(item.bancaleStatoOperativo)
-  ) {
+  if (item.bancaleVerificato) {
     insertRow.bancale_verificato = true;
     insertRow.bancale_verificato_at = new Date().toISOString();
     insertRow.bancale_verificato_da = operatore;
@@ -318,21 +284,6 @@ export async function updateInventoryItem(
   }
   if (patch.marca !== undefined && patch.modello !== undefined) {
     row.nome = `${patch.marca} ${patch.modello}`;
-  }
-
-  const statoEffettivo =
-    patch.bancaleStatoOperativo !== undefined
-      ? patch.bancaleStatoOperativo
-      : normalizeBancaleStatoOperativo(previous?.bancaleStatoOperativo);
-  if (isBancaleFuoriUbicazione(statoEffettivo)) {
-    row.scaffale = null;
-    row.ripiano = null;
-    row.bancale = null;
-    if (patch.bancaleVerificato === undefined) {
-      row.bancale_verificato = false;
-      row.bancale_verificato_at = null;
-      row.bancale_verificato_da = null;
-    }
   }
 
   const qtyBefore = previous?.quantita;

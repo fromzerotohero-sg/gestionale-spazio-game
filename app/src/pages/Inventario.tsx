@@ -118,7 +118,6 @@ import {
   BancaleStatoOperativoPanel,
 } from "@/components/inventory/BancaleStatoOperativoPanel";
 import {
-  isBancaleFuoriUbicazione,
   normalizeBancaleStatoOperativo,
   type BancaleStatoOperativo,
 } from "@/lib/bancale-stato-operativo";
@@ -415,14 +414,6 @@ export default function Inventario() {
   const [modalBancaleStatoOperativo, setModalBancaleStatoOperativo] =
     useState<BancaleStatoOperativo | null>(null);
   const [modalBancaleStatoNota, setModalBancaleStatoNota] = useState("");
-  const [modalScaffale, setModalScaffale] = useState(1);
-  const [modalRipiano, setModalRipiano] = useState(1);
-  const [modalBancale, setModalBancale] = useState("A");
-  const ubicazioneMagazzinoBackup = useRef<{
-    scaffale: number;
-    ripiano: number;
-    bancale: string;
-  } | null>(null);
   const [modalGradoMode, setModalGradoMode] = useState<GradoFormMode>("A");
   const [modalGradoCustom, setModalGradoCustom] = useState("");
   const [modalDocInviataAt, setModalDocInviataAt] = useState<Date | undefined>();
@@ -545,50 +536,6 @@ export default function Inventario() {
       return;
     }
     if (checked) applicaBancaleVerificato(item, true);
-  }
-
-  function handleModalBancaleStatoChange(stato: BancaleStatoOperativo | null) {
-    const eraFuori = isBancaleFuoriUbicazione(modalBancaleStatoOperativo);
-    const saraFuori = isBancaleFuoriUbicazione(stato);
-    if (saraFuori && !eraFuori) {
-      ubicazioneMagazzinoBackup.current = {
-        scaffale: modalScaffale,
-        ripiano: modalRipiano,
-        bancale: modalBancale,
-      };
-      setModalBancaleVerificato(false);
-    }
-    if (!saraFuori && eraFuori && ubicazioneMagazzinoBackup.current) {
-      setModalScaffale(ubicazioneMagazzinoBackup.current.scaffale);
-      setModalRipiano(ubicazioneMagazzinoBackup.current.ripiano);
-      setModalBancale(ubicazioneMagazzinoBackup.current.bancale);
-      ubicazioneMagazzinoBackup.current = null;
-    }
-    setModalBancaleStatoOperativo(stato);
-  }
-
-  function getMonitorUbicazionePatch():
-    | {
-        scaffale: number | null;
-        ripiano: number | null;
-        bancale: string | null;
-        bancaleVerificato?: boolean;
-      }
-    | Record<string, never> {
-    if (isBancaleFuoriUbicazione(modalBancaleStatoOperativo)) {
-      return {
-        scaffale: null,
-        ripiano: null,
-        bancale: null,
-        bancaleVerificato: false,
-      };
-    }
-    return {
-      scaffale: modalScaffale,
-      ripiano: modalRipiano,
-      bancale: modalBancale,
-      bancaleVerificato: modalBancaleVerificato,
-    };
   }
 
   function handleModalBancaleVerificatoChange(checked: boolean) {
@@ -1048,32 +995,23 @@ export default function Inventario() {
       }),
       colH.accessor("scaffale", {
         header: "Scaff.",
-        cell: ({ row, getValue }) =>
-          isBancaleFuoriUbicazione(row.original.bancaleStatoOperativo) ? (
-            <span className="font-caption text-text-muted">—</span>
-          ) : (
-            <span className="font-mono text-text-muted">{getValue()}</span>
-          ),
+        cell: ({ getValue }) => (
+          <span className="font-mono text-text-muted">{getValue()}</span>
+        ),
         size: 70,
       }),
       colH.accessor("ripiano", {
         header: "Rip.",
-        cell: ({ row, getValue }) =>
-          isBancaleFuoriUbicazione(row.original.bancaleStatoOperativo) ? (
-            <span className="font-caption text-text-muted">—</span>
-          ) : (
-            <span className="font-mono text-text-muted">{getValue()}</span>
-          ),
+        cell: ({ getValue }) => (
+          <span className="font-mono text-text-muted">{getValue()}</span>
+        ),
         size: 70,
       }),
       colH.accessor("bancale", {
         header: "Bancale",
-        cell: ({ row, getValue }) =>
-          isBancaleFuoriUbicazione(row.original.bancaleStatoOperativo) ? (
-            <span className="font-caption text-text-muted">—</span>
-          ) : (
-            <span className="font-mono text-text-secondary">{getValue()}</span>
-          ),
+        cell: ({ getValue }) => (
+          <span className="font-mono text-text-secondary">{getValue()}</span>
+        ),
         size: 80,
       }),
       colH.accessor("grado", {
@@ -1415,10 +1353,6 @@ export default function Inventario() {
     setModalBancaleVerificato(false);
     setModalBancaleStatoOperativo(null);
     setModalBancaleStatoNota("");
-    setModalScaffale(1);
-    setModalRipiano(1);
-    setModalBancale("A");
-    ubicazioneMagazzinoBackup.current = null;
     setModalGradoMode("A");
     setModalGradoCustom("");
     setModalDocInviataAt(undefined);
@@ -1443,13 +1377,6 @@ export default function Inventario() {
       normalizeBancaleStatoOperativo(item.bancaleStatoOperativo),
     );
     setModalBancaleStatoNota(item.bancaleStatoOperativoNota || "");
-    ubicazioneMagazzinoBackup.current = null;
-    const statoItem = normalizeBancaleStatoOperativo(item.bancaleStatoOperativo);
-    const fuoriUbicazione = isBancaleFuoriUbicazione(statoItem);
-    setModalScaffale(fuoriUbicazione ? 1 : (item.scaffale ?? 1));
-    setModalRipiano(fuoriUbicazione ? 1 : (item.ripiano ?? 1));
-    setModalBancale(fuoriUbicazione ? "A" : (item.bancale ?? "A"));
-    if (fuoriUbicazione) setModalBancaleVerificato(false);
     const gradoForm = gradoToFormState(item.grado);
     setModalGradoMode(gradoForm.mode);
     setModalGradoCustom(gradoForm.custom);
@@ -1633,7 +1560,6 @@ export default function Inventario() {
       ? {
           bancaleStatoOperativo: modalBancaleStatoOperativo,
           bancaleStatoOperativoNota: modalBancaleStatoNota.trim() || null,
-          ...getMonitorUbicazionePatch(),
         }
       : {};
 
@@ -1654,16 +1580,12 @@ export default function Inventario() {
             modello: (formData.get("modello") as string) || editingItem.modello,
             marca: (formData.get("marca") as string) || editingItem.marca,
             ...(isMonitorForm ? { grado: gradoSalvato } : {}),
-            ...(isMonitorForm
-              ? {}
-              : {
-                  scaffale: Number(formData.get("scaffale")) || editingItem.scaffale,
-                  ripiano: Number(formData.get("ripiano")) || editingItem.ripiano,
-                  bancale: (formData.get("bancale") as string) || editingItem.bancale,
-                  ...(editingItem.categoria !== "schede"
-                    ? { bancaleVerificato: modalBancaleVerificato }
-                    : {}),
-                }),
+            scaffale: Number(formData.get("scaffale")) || editingItem.scaffale,
+            ripiano: Number(formData.get("ripiano")) || editingItem.ripiano,
+            bancale: (formData.get("bancale") as string) || editingItem.bancale,
+            ...(editingItem.categoria !== "schede"
+              ? { bancaleVerificato: modalBancaleVerificato }
+              : {}),
             ...monitorBancalePatch,
             ...schedeNullaostaPatch,
           },
@@ -1712,9 +1634,11 @@ export default function Inventario() {
                   modello: (formData.get("modello") as string) || "",
                   marca: (formData.get("marca") as string) || "",
                   grado: gradoSalvato ?? "A",
+                  scaffale: Number(formData.get("scaffale")) || 1,
+                  ripiano: Number(formData.get("ripiano")) || 1,
+                  bancale: (formData.get("bancale") as string) || "A",
                   bancaleStatoOperativo: modalBancaleStatoOperativo,
                   bancaleStatoOperativoNota: modalBancaleStatoNota.trim() || null,
-                  ...getMonitorUbicazionePatch(),
                 }
               : {}),
           },
@@ -3036,33 +2960,16 @@ export default function Inventario() {
                     />
                   </div>
                 </div>
-              <BancaleStatoOperativoPanel
-                stato={modalBancaleStatoOperativo}
-                onStatoChange={handleModalBancaleStatoChange}
-                nota={modalBancaleStatoNota}
-                onNotaChange={setModalBancaleStatoNota}
-                item={editingItem}
-                disabled={!operatore}
-              />
-              {isBancaleFuoriUbicazione(modalBancaleStatoOperativo) ? (
-                <p className="font-caption text-text-muted rounded-md border border-dashed border-border-default px-3 py-2">
-                  Senza ubicazione a scaffale: l&apos;articolo è a terra o da
-                  sbancalare. Al salvataggio scaffale, ripiano e bancale vengono
-                  azzerati.
-                </p>
-              ) : (
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label className="text-text-secondary mb-1.5 block">
                       Scaffale
                     </Label>
                     <Input
+                      name="scaffale"
                       type="number"
                       min={1}
-                      value={modalScaffale}
-                      onChange={(e) =>
-                        setModalScaffale(Number(e.target.value) || 1)
-                      }
+                      defaultValue={editingItem?.scaffale || 1}
                       className="bg-bg-elevated border-border-default"
                     />
                   </div>
@@ -3071,12 +2978,10 @@ export default function Inventario() {
                       Ripiano
                     </Label>
                     <Input
+                      name="ripiano"
                       type="number"
                       min={1}
-                      value={modalRipiano}
-                      onChange={(e) =>
-                        setModalRipiano(Number(e.target.value) || 1)
-                      }
+                      defaultValue={editingItem?.ripiano || 1}
                       className="bg-bg-elevated border-border-default"
                     />
                   </div>
@@ -3085,8 +2990,8 @@ export default function Inventario() {
                       Bancale
                     </Label>
                     <select
-                      value={modalBancale}
-                      onChange={(e) => setModalBancale(e.target.value)}
+                      name="bancale"
+                      defaultValue={editingItem?.bancale || "A"}
                       className="h-9 w-full rounded-md border border-border-default bg-bg-elevated px-3 text-text-primary text-sm focus:border-accent-primary focus:outline-none"
                     >
                       <option>A</option>
@@ -3095,17 +3000,19 @@ export default function Inventario() {
                     </select>
                   </div>
                 </div>
-              )}
+              <BancaleStatoOperativoPanel
+                stato={modalBancaleStatoOperativo}
+                onStatoChange={setModalBancaleStatoOperativo}
+                nota={modalBancaleStatoNota}
+                onNotaChange={setModalBancaleStatoNota}
+                item={editingItem}
+                disabled={!operatore}
+              />
               </>
             )}
 
             {activeTab !== "schede" &&
-              editingItem?.categoria !== "schede" &&
-              !(
-                (activeTab === "monitor" ||
-                  editingItem?.categoria === "monitor") &&
-                isBancaleFuoriUbicazione(modalBancaleStatoOperativo)
-              ) && (
+              editingItem?.categoria !== "schede" && (
                 <BancaleVerificaPanel
                   checked={modalBancaleVerificato}
                   onCheckedChange={handleModalBancaleVerificatoChange}

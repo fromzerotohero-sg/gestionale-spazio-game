@@ -47,12 +47,6 @@ export function selectValueToBancaleStato(
   return normalizeBancaleStatoOperativo(value);
 }
 
-export function isBancaleFuoriUbicazione(
-  stato: BancaleStatoOperativo | null | undefined,
-): boolean {
-  return stato === "da_sbancalare" || stato === "a_terra";
-}
-
 export function formatBancaleStatoDisplay(
   stato: BancaleStatoOperativo | null | undefined,
   nota?: string | null,

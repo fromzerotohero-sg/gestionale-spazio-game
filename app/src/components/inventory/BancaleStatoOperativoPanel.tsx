@@ -51,7 +51,7 @@ export function BancaleStatoOperativoPanel({
           Stato bancale
         </Label>
         <p className="font-caption text-text-muted mt-1">
-          Se è da sbancalare o a terra, non ha più ubicazione a scaffale.
+          Facoltativo: da sbancalare, a terra, o nota libera.
         </p>
       </div>
       <select
