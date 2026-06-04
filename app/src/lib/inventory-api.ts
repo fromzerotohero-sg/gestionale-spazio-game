@@ -11,6 +11,7 @@ import {
   isSupabaseConfigured,
   supabaseConfigError,
 } from "@/lib/supabase";
+import { normalizeBancaleStatoOperativo } from "@/lib/bancale-stato-operativo";
 import { NULLAOSTA_PREZZO_INCREMENTO } from "@/lib/scheda-nullaosta";
 import type {
   InventoryActivityEntry,
@@ -55,6 +56,11 @@ export function rowToUnified(row: InventoryRow): UnifiedItem {
     bancaleVerificato: row.bancale_verificato,
     bancaleVerificatoAt: row.bancale_verificato_at ?? undefined,
     bancaleVerificatoDa: row.bancale_verificato_da ?? undefined,
+    bancaleStatoOperativo: normalizeBancaleStatoOperativo(
+      row.bancale_stato_operativo,
+    ),
+    bancaleStatoOperativoAt: row.bancale_stato_operativo_at ?? undefined,
+    bancaleStatoOperativoDa: row.bancale_stato_operativo_da ?? undefined,
     schedaDocInviataAt: row.scheda_doc_inviata_at ?? undefined,
     nullaostaRicevutoAt: row.nullaosta_ricevuto_at ?? undefined,
     nullaostaPrezzoIncrementato: row.nullaosta_prezzo_incrementato,
@@ -243,6 +249,19 @@ export async function updateInventoryItem(
   }
   if (patch.nullaostaPrezzoIncrementato !== undefined) {
     row.nullaosta_prezzo_incrementato = patch.nullaostaPrezzoIncrementato;
+  }
+  if (patch.bancaleStatoOperativo !== undefined) {
+    const stato = normalizeBancaleStatoOperativo(patch.bancaleStatoOperativo);
+    row.bancale_stato_operativo = stato;
+    const statoChanged =
+      stato !== normalizeBancaleStatoOperativo(previous?.bancaleStatoOperativo);
+    if (stato === "a_riposo") {
+      row.bancale_stato_operativo_at = null;
+      row.bancale_stato_operativo_da = null;
+    } else if (statoChanged || !previous?.bancaleStatoOperativoAt) {
+      row.bancale_stato_operativo_at = new Date().toISOString();
+      row.bancale_stato_operativo_da = operatore;
+    }
   }
   if (patch.bancaleVerificato !== undefined) {
     row.bancale_verificato = patch.bancaleVerificato;

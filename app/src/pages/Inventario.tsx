@@ -114,6 +114,14 @@ import {
 } from "@/components/inventory/SchedaNullaostaPanel";
 import { SchedePrenotatePanel } from "@/components/inventory/SchedePrenotatePanel";
 import {
+  BancaleStatoOperativoBadge,
+  BancaleStatoOperativoPanel,
+} from "@/components/inventory/BancaleStatoOperativoPanel";
+import {
+  normalizeBancaleStatoOperativo,
+  type BancaleStatoOperativo,
+} from "@/lib/bancale-stato-operativo";
+import {
   schedaNullaostaLabel,
   toDateIso,
 } from "@/lib/scheda-nullaosta";
@@ -183,6 +191,7 @@ const COLUMN_LABELS: Record<string, string> = {
   scaffale: "Scaffale",
   ripiano: "Ripiano",
   bancale: "Bancale",
+  bancaleStatoOperativo: "Stato bancale",
   grado: "Grado",
   note: "Note",
   sede: "Sede",
@@ -402,6 +411,8 @@ export default function Inventario() {
   const [filterBancaleVerifica, setFilterBancaleVerifica] =
     useState<FilterBancaleVerifica>("tutti");
   const [modalBancaleVerificato, setModalBancaleVerificato] = useState(false);
+  const [modalBancaleStatoOperativo, setModalBancaleStatoOperativo] =
+    useState<BancaleStatoOperativo>("a_riposo");
   const [modalGradoMode, setModalGradoMode] = useState<GradoFormMode>("A");
   const [modalGradoCustom, setModalGradoCustom] = useState("");
   const [modalDocInviataAt, setModalDocInviataAt] = useState<Date | undefined>();
@@ -539,20 +550,16 @@ export default function Inventario() {
       toast.error("Nessun articolo da stampare");
       return;
     }
-    if (targetItems.length > 40) {
-      toast.error(
-        `Troppi risultati (${targetItems.length}). Affina la ricerca (max 40).`,
+    const toPrint = targetItems.slice(0, 1);
+    if (targetItems.length > 1) {
+      toast.info(
+        `Trovati ${targetItems.length} articoli: viene stampata un'etichetta (${toPrint[0].id}). Affina la ricerca per un altro.`,
       );
-      return;
     }
-    setLabelPrintItems(targetItems);
+    setLabelPrintItems(toPrint);
     window.setTimeout(() => {
       triggerBrowserLabelPrint();
-      toast.success(
-        targetItems.length === 1
-          ? `Etichetta pronta: ${targetItems[0].id}`
-          : `${targetItems.length} etichette pronte per la stampa`,
-      );
+      toast.success(`Etichetta pronta: ${toPrint[0].nome}`);
     }, 150);
   }
 
@@ -1105,6 +1112,23 @@ export default function Inventario() {
     [colH, operatore],
   );
 
+  const bancaleStatoOperativoColumn = useMemo(
+    () =>
+      colH.accessor(
+        (row) =>
+          normalizeBancaleStatoOperativo(row.bancaleStatoOperativo),
+        {
+          id: "bancaleStatoOperativo",
+          header: "Stato bancale",
+          cell: ({ getValue }) => (
+            <BancaleStatoOperativoBadge stato={getValue()} />
+          ),
+          size: 168,
+        },
+      ),
+    [colH],
+  );
+
   const categoriaColumn = useMemo(
     () =>
       colH.accessor("categoria", {
@@ -1232,6 +1256,7 @@ export default function Inventario() {
         monitorExtraCols[3], // scaffale
         monitorExtraCols[4], // ripiano
         monitorExtraCols[5], // bancale
+        bancaleStatoOperativoColumn,
         monitorExtraCols[6], // grado
         verificaBancaleColumn,
         lastModifiedColumn,
@@ -1282,6 +1307,7 @@ export default function Inventario() {
     categoriaColumn,
     noteColumn,
     schedeNullaostaColumn,
+    bancaleStatoOperativoColumn,
     sedeColumn,
     verificaBancaleColumn,
     lastModifiedColumn,
@@ -1318,6 +1344,7 @@ export default function Inventario() {
     setShowNoteSection(false);
     setShowCronologiaSection(false);
     setModalBancaleVerificato(false);
+    setModalBancaleStatoOperativo("a_riposo");
     setModalGradoMode("A");
     setModalGradoCustom("");
     setModalDocInviataAt(undefined);
@@ -1338,6 +1365,9 @@ export default function Inventario() {
     setShowNoteSection(false);
     setShowCronologiaSection(false);
     setModalBancaleVerificato(!!item.bancaleVerificato);
+    setModalBancaleStatoOperativo(
+      normalizeBancaleStatoOperativo(item.bancaleStatoOperativo),
+    );
     const gradoForm = gradoToFormState(item.grado);
     setModalGradoMode(gradoForm.mode);
     setModalGradoCustom(gradoForm.custom);
@@ -1517,6 +1547,10 @@ export default function Inventario() {
         }
       : {};
 
+    const monitorBancalePatch = isMonitorForm
+      ? { bancaleStatoOperativo: modalBancaleStatoOperativo }
+      : {};
+
     if (editingItem) {
       const previous = editingItem;
       updateItem.mutate(
@@ -1540,6 +1574,7 @@ export default function Inventario() {
             ...(editingItem.categoria !== "schede"
               ? { bancaleVerificato: modalBancaleVerificato }
               : {}),
+            ...monitorBancalePatch,
             ...schedeNullaostaPatch,
           },
         },
@@ -1590,6 +1625,7 @@ export default function Inventario() {
                   scaffale: Number(formData.get("scaffale")) || 1,
                   ripiano: Number(formData.get("ripiano")) || 1,
                   bancale: (formData.get("bancale") as string) || "A",
+                  bancaleStatoOperativo: modalBancaleStatoOperativo,
                 }
               : {}),
           },
@@ -2951,6 +2987,12 @@ export default function Inventario() {
                     </select>
                   </div>
                 </div>
+                <BancaleStatoOperativoPanel
+                  value={modalBancaleStatoOperativo}
+                  onChange={setModalBancaleStatoOperativo}
+                  item={editingItem}
+                  disabled={!operatore}
+                />
               </>
             )}
 

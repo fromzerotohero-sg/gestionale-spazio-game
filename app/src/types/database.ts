@@ -39,6 +39,14 @@ export type Database = {
             | "Matteo"
             | "Paolo"
             | null;
+          bancale_stato_operativo: string;
+          bancale_stato_operativo_at: string | null;
+          bancale_stato_operativo_da:
+            | "Giangrossi"
+            | "Irene"
+            | "Matteo"
+            | "Paolo"
+            | null;
           created_at: string;
           updated_at: string;
           last_modified_by: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
@@ -76,6 +84,14 @@ export type Database = {
             | "Matteo"
             | "Paolo"
             | null;
+          bancale_stato_operativo?: string;
+          bancale_stato_operativo_at?: string | null;
+          bancale_stato_operativo_da?:
+            | "Giangrossi"
+            | "Irene"
+            | "Matteo"
+            | "Paolo"
+            | null;
           created_at?: string;
           updated_at?: string;
           last_modified_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
@@ -108,6 +124,14 @@ export type Database = {
           bancale_verificato?: boolean;
           bancale_verificato_at?: string | null;
           bancale_verificato_da?:
+            | "Giangrossi"
+            | "Irene"
+            | "Matteo"
+            | "Paolo"
+            | null;
+          bancale_stato_operativo?: string;
+          bancale_stato_operativo_at?: string | null;
+          bancale_stato_operativo_da?:
             | "Giangrossi"
             | "Irene"
             | "Matteo"

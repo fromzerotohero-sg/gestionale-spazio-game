@@ -1,5 +1,6 @@
 import type { Category, Sede } from "@/data/inventory";
 import type { Operatore } from "@/data/operators";
+import type { BancaleStatoOperativo } from "@/lib/bancale-stato-operativo";
 import type { InventoryAction } from "@/lib/inventory-tracking";
 
 export interface UnifiedItem {
@@ -22,6 +23,9 @@ export interface UnifiedItem {
   bancaleVerificato?: boolean;
   bancaleVerificatoAt?: string;
   bancaleVerificatoDa?: Operatore;
+  bancaleStatoOperativo?: BancaleStatoOperativo;
+  bancaleStatoOperativoAt?: string;
+  bancaleStatoOperativoDa?: Operatore;
   schedaDocInviataAt?: string;
   nullaostaRicevutoAt?: string;
   nullaostaPrezzoIncrementato?: boolean;
@@ -46,6 +50,7 @@ export type InventoryRowInput = {
   bancale?: string;
   grado?: string;
   bancaleVerificato?: boolean;
+  bancaleStatoOperativo?: BancaleStatoOperativo;
   schedaDocInviataAt?: string | null;
   nullaostaRicevutoAt?: string | null;
   nullaostaPrezzoIncrementato?: boolean;
