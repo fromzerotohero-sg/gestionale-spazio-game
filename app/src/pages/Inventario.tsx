@@ -558,9 +558,12 @@ export default function Inventario() {
     }
     setLabelPrintItems(toPrint);
     window.setTimeout(() => {
-      triggerBrowserLabelPrint();
-      toast.success(`Etichetta pronta: ${toPrint[0].nome}`);
-    }, 150);
+      triggerBrowserLabelPrint(() => setLabelPrintItems([]));
+      toast.success(
+        `Etichetta pronta: ${toPrint[0].nome}. Nel dialogo stampa disattiva intestazioni e piè di pagina.`,
+        { duration: 6000 },
+      );
+    }, 200);
   }
 
   function stampaEtichettaDaToolbar() {

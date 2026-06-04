@@ -1,8 +1,6 @@
+/* Etichetta 100×50 mm — solo questo blocco va in stampa */
 .inventory-label-print-root {
-  position: fixed;
-  left: -9999px;
-  top: 0;
-  pointer-events: none;
+  display: none;
 }
 
 .inventory-label-sheet {
@@ -13,46 +11,43 @@
   box-sizing: border-box;
   width: 100mm;
   height: 50mm;
-  padding: 5mm 6mm;
-  border: 0.25mm solid #000;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1.2mm;
+  max-height: 50mm;
+  padding: 3.5mm 5mm;
+  border: 0.3mm solid #000;
   background: #fff;
   color: #000;
   font-family: Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .inventory-label-card__title {
-  font-size: 7pt;
+  margin: 0 0 2mm 0;
+  font-size: 6.5pt;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin: 0 0 1mm 0;
-  color: #333;
+  letter-spacing: 0.08em;
+  line-height: 1;
 }
 
-.inventory-label-card__row {
-  display: flex;
-  align-items: baseline;
-  gap: 2mm;
-  line-height: 1.2;
+.inventory-label-card__grid {
+  display: grid;
+  grid-template-columns: 24mm 1fr;
+  column-gap: 2mm;
+  row-gap: 1.4mm;
+  font-size: 7.5pt;
+  line-height: 1.15;
 }
 
 .inventory-label-card__label {
-  flex: 0 0 26mm;
-  font-size: 8pt;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .inventory-label-card__value {
-  flex: 1;
-  font-size: 9.5pt;
   font-weight: 700;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -66,43 +61,41 @@
 
   html,
   body {
+    width: 100mm !important;
+    height: 50mm !important;
     margin: 0 !important;
     padding: 0 !important;
-    height: auto !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
-  body.inventory-label-printing * {
-    visibility: hidden !important;
-  }
-
-  body.inventory-label-printing .inventory-label-print-root,
-  body.inventory-label-printing .inventory-label-print-root * {
-    visibility: visible !important;
+  /* Nasconde tutta l'app: visibility:hidden lasciava 13+ pagine vuote */
+  body.inventory-label-printing #root {
+    display: none !important;
   }
 
   body.inventory-label-printing .inventory-label-print-root {
-    position: absolute !important;
+    display: block !important;
+    position: fixed !important;
     left: 0 !important;
     top: 0 !important;
     width: 100mm !important;
-    pointer-events: none !important;
+    height: 50mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    z-index: 99999 !important;
   }
 
-  .inventory-label-sheet {
+  body.inventory-label-printing .inventory-label-sheet,
+  body.inventory-label-printing .inventory-label-card {
     display: block !important;
+    visibility: visible !important;
   }
 
   .inventory-label-card {
-    page-break-after: always;
-    break-after: page;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  .inventory-label-sheet--single .inventory-label-card,
-  .inventory-label-card:last-child {
+    page-break-before: avoid !important;
     page-break-after: avoid !important;
+    break-before: avoid !important;
     break-after: avoid !important;
   }
 }

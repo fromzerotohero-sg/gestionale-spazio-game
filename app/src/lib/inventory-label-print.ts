@@ -50,10 +50,12 @@ export function formatLabelVerificato(item: UnifiedItem): string {
   return item.bancaleVerificato ? "Sì" : "No";
 }
 
-export function triggerBrowserLabelPrint() {
+export function triggerBrowserLabelPrint(onAfter?: () => void) {
   document.body.classList.add("inventory-label-printing");
-  const cleanup = () =>
+  const cleanup = () => {
     document.body.classList.remove("inventory-label-printing");
+    onAfter?.();
+  };
   window.addEventListener("afterprint", cleanup, { once: true });
   window.print();
 }
