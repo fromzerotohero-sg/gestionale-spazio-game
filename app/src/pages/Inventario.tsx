@@ -10,6 +10,7 @@ import {
   getFilteredRowModel,
   flexRender,
   createColumnHelper,
+  type Column,
   type SortingState,
   type RowSelectionState,
 } from "@tanstack/react-table";
@@ -142,6 +143,11 @@ import type { UnifiedItem } from "@/types/inventory";
 import { Spinner } from "@/components/ui/spinner";
 
 type EditingCell = { rowId: string; columnId: string } | null;
+
+/** Ordine predefinito: inserimenti e modifiche recenti in cima */
+const DEFAULT_TABLE_SORTING: SortingState = [
+  { id: "ultimoAggiornamento", desc: true },
+];
 
 // ─── Animation variants ────────────────────────────────────
 const easeSmooth = [0.16, 1, 0.3, 1] as [number, number, number, number];
@@ -348,6 +354,38 @@ function BancaleVerificaPanel({
   );
 }
 
+function SortableColumnHeader({
+  label,
+  column,
+  align = "left",
+  defaultDesc = false,
+}: {
+  label: string;
+  column: Column<UnifiedItem, unknown>;
+  align?: "left" | "right" | "center";
+  defaultDesc?: boolean;
+}) {
+  const sorted = column.getIsSorted();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!sorted) column.toggleSorting(defaultDesc);
+        else column.toggleSorting();
+      }}
+      className={cn(
+        "flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors",
+        align === "right" && "w-full justify-end",
+        align === "center" && "w-full justify-center",
+      )}
+    >
+      {label}
+      {sorted === "asc" && <ChevronUp size={12} />}
+      {sorted === "desc" && <ChevronDown size={12} />}
+    </button>
+  );
+}
+
 function LastModifiedCell({ item }: { item: UnifiedItem }) {
   if (!item.updatedAt) {
     return <span className="font-caption text-text-muted">Mai aggiornato</span>;
@@ -395,7 +433,22 @@ export default function Inventario() {
     tabFromUrl || "tutti",
   );
 
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>(DEFAULT_TABLE_SORTING);
+
+  useEffect(() => {
+    setSorting(DEFAULT_TABLE_SORTING);
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [activeTab]);
+
+  const handleSortingChange = useCallback(
+    (updater: SortingState | ((prev: SortingState) => SortingState)) => {
+      setSorting((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        return next.length > 0 ? next : DEFAULT_TABLE_SORTING;
+      });
+    },
+    [],
+  );
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
@@ -757,7 +810,9 @@ export default function Inventario() {
         enableSorting: false,
       }),
       colH.accessor("id", {
-        header: "ID",
+        header: ({ column }) => (
+          <SortableColumnHeader label="ID" column={column} />
+        ),
         cell: ({ getValue }) => (
           <span className="font-mono text-text-muted text-xs">
             {getValue()}
@@ -767,14 +822,7 @@ export default function Inventario() {
       }),
       colH.accessor("nome", {
         header: ({ column }) => (
-          <button
-            onClick={() => column.toggleSorting()}
-            className="flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors"
-          >
-            Articolo
-            {column.getIsSorted() === "asc" && <ChevronUp size={12} />}
-            {column.getIsSorted() === "desc" && <ChevronDown size={12} />}
-          </button>
+          <SortableColumnHeader label="Articolo" column={column} />
         ),
         cell: ({ getValue, row }) => (
           <div className="flex flex-col">
@@ -792,14 +840,11 @@ export default function Inventario() {
       }),
       colH.accessor("quantita", {
         header: ({ column }) => (
-          <button
-            onClick={() => column.toggleSorting()}
-            className="flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors w-full justify-end"
-          >
-            Quantita
-            {column.getIsSorted() === "asc" && <ChevronUp size={12} />}
-            {column.getIsSorted() === "desc" && <ChevronDown size={12} />}
-          </button>
+          <SortableColumnHeader
+            label="Quantita"
+            column={column}
+            align="right"
+          />
         ),
         cell: ({ getValue, row, column }) => {
           const val = getValue();
@@ -873,14 +918,11 @@ export default function Inventario() {
       }),
       colH.accessor("prezzoUnitario", {
         header: ({ column }) => (
-          <button
-            onClick={() => column.toggleSorting()}
-            className="flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors w-full justify-end"
-          >
-            {"\u20AC"}/unit
-            {column.getIsSorted() === "asc" && <ChevronUp size={12} />}
-            {column.getIsSorted() === "desc" && <ChevronDown size={12} />}
-          </button>
+          <SortableColumnHeader
+            label={"\u20AC" + "/unit"}
+            column={column}
+            align="right"
+          />
         ),
         cell: ({ getValue, row, column }) => {
           const val = getValue();
@@ -948,14 +990,11 @@ export default function Inventario() {
       }),
       colH.accessor("totale", {
         header: ({ column }) => (
-          <button
-            onClick={() => column.toggleSorting()}
-            className="flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors w-full justify-end"
-          >
-            Totale
-            {column.getIsSorted() === "asc" && <ChevronUp size={12} />}
-            {column.getIsSorted() === "desc" && <ChevronDown size={12} />}
-          </button>
+          <SortableColumnHeader
+            label="Totale"
+            column={column}
+            align="right"
+          />
         ),
         cell: ({ getValue }) => (
           <span className="font-mono text-accent-primary font-semibold">
@@ -973,49 +1012,63 @@ export default function Inventario() {
   const monitorExtraCols = useMemo(
     () => [
       colH.accessor("tipo", {
-        header: "Tipo",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Tipo" column={column} />
+        ),
         cell: ({ getValue }) => (
           <StatusBadge label={getValue() || ""} variant="tipo" />
         ),
         size: 100,
       }),
       colH.accessor("modello", {
-        header: "Modello",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Modello" column={column} />
+        ),
         cell: ({ getValue }) => (
           <span className="font-body text-text-primary">{getValue()}</span>
         ),
         size: 120,
       }),
       colH.accessor("marca", {
-        header: "Marca",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Marca" column={column} />
+        ),
         cell: ({ getValue }) => (
           <span className="font-body text-text-secondary">{getValue()}</span>
         ),
         size: 100,
       }),
       colH.accessor("scaffale", {
-        header: "Scaff.",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Scaff." column={column} align="right" />
+        ),
         cell: ({ getValue }) => (
           <span className="font-mono text-text-muted">{getValue()}</span>
         ),
         size: 70,
       }),
       colH.accessor("ripiano", {
-        header: "Rip.",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Rip." column={column} align="right" />
+        ),
         cell: ({ getValue }) => (
           <span className="font-mono text-text-muted">{getValue()}</span>
         ),
         size: 70,
       }),
       colH.accessor("bancale", {
-        header: "Bancale",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Bancale" column={column} />
+        ),
         cell: ({ getValue }) => (
           <span className="font-mono text-text-secondary">{getValue()}</span>
         ),
         size: 80,
       }),
       colH.accessor("grado", {
-        header: "Grado",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Grado" column={column} />
+        ),
         cell: ({ getValue }) => (
           <StatusBadge label={getValue() || ""} variant="grado" />
         ),
@@ -1046,7 +1099,9 @@ export default function Inventario() {
   const sedeColumn = useMemo(
     () =>
       colH.accessor("sede", {
-        header: "Sede",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Sede" column={column} />
+        ),
         cell: ({ getValue }) => <SedeBadge sede={getValue()} />,
         size: 150,
       }),
@@ -1055,9 +1110,11 @@ export default function Inventario() {
 
   const schedeNullaostaColumn = useMemo(
     () =>
-      colH.display({
+      colH.accessor((row) => schedaNullaostaLabel(row).text, {
         id: "schedaNullaosta",
-        header: "Nullaosta",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Nullaosta" column={column} />
+        ),
         cell: ({ row }) => {
           const label = schedaNullaostaLabel(row.original);
           return (
@@ -1078,7 +1135,6 @@ export default function Inventario() {
           );
         },
         size: 180,
-        enableSorting: false,
       }),
     [colH],
   );
@@ -1088,18 +1144,11 @@ export default function Inventario() {
       colH.accessor((row) => row.bancaleVerificato ?? false, {
         id: "verificaBancale",
         header: ({ column }) => (
-          <button
-            type="button"
-            onClick={() => {
-              if (!column.getIsSorted()) column.toggleSorting(true);
-              else column.toggleSorting();
-            }}
-            className="flex items-center justify-center gap-1 w-full font-caption text-text-muted uppercase hover:text-text-secondary transition-colors"
-          >
-            Verificato
-            {column.getIsSorted() === "asc" && <ChevronUp size={12} />}
-            {column.getIsSorted() === "desc" && <ChevronDown size={12} />}
-          </button>
+          <SortableColumnHeader
+            label="Verificato"
+            column={column}
+            align="center"
+          />
         ),
         cell: ({ row }) => (
           <BancaleVerificaCell
@@ -1123,7 +1172,9 @@ export default function Inventario() {
           normalizeBancaleStatoOperativo(row.bancaleStatoOperativo),
         {
           id: "bancaleStatoOperativo",
-          header: "Stato bancale",
+          header: ({ column }) => (
+            <SortableColumnHeader label="Stato bancale" column={column} />
+          ),
           cell: ({ row, getValue }) => (
             <BancaleStatoOperativoBadge
               stato={getValue()}
@@ -1141,15 +1192,7 @@ export default function Inventario() {
       colH.accessor("categoria", {
         id: "categoria",
         header: ({ column }) => (
-          <button
-            type="button"
-            onClick={() => column.toggleSorting()}
-            className="flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors"
-          >
-            Categoria
-            {column.getIsSorted() === "asc" && <ChevronUp size={12} />}
-            {column.getIsSorted() === "desc" && <ChevronDown size={12} />}
-          </button>
+          <SortableColumnHeader label="Categoria" column={column} />
         ),
         cell: ({ getValue }) => {
           const cat = getValue();
@@ -1175,18 +1218,11 @@ export default function Inventario() {
       colH.accessor((row) => row.updatedAt ?? "", {
         id: "ultimoAggiornamento",
         header: ({ column }) => (
-          <button
-            type="button"
-            onClick={() => {
-              if (!column.getIsSorted()) column.toggleSorting(true);
-              else column.toggleSorting();
-            }}
-            className="flex items-center gap-1 font-caption text-text-muted uppercase hover:text-text-secondary transition-colors"
-          >
-            Ultimo agg.
-            {column.getIsSorted() === "asc" && <ChevronUp size={12} />}
-            {column.getIsSorted() === "desc" && <ChevronDown size={12} />}
-          </button>
+          <SortableColumnHeader
+            label="Ultimo agg."
+            column={column}
+            defaultDesc
+          />
         ),
         cell: ({ row }) => <LastModifiedCell item={row.original} />,
         sortingFn: (a, b) => {
@@ -1326,7 +1362,7 @@ export default function Inventario() {
     data: filteredData,
     columns,
     state: { sorting, rowSelection, pagination, globalFilter },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
     onGlobalFilterChange: setGlobalFilter,
@@ -1529,6 +1565,8 @@ export default function Inventario() {
     const onDone = () => {
       setItemModalOpen(false);
       setEditingItem(null);
+      setSorting(DEFAULT_TABLE_SORTING);
+      setPagination((p) => ({ ...p, pageIndex: 0 }));
     };
 
     const isMonitorForm =
@@ -2850,19 +2888,20 @@ export default function Inventario() {
                   <Button
                     type="button"
                     size="sm"
+                    variant="outline"
                     disabled={movimentoSaving}
                     onClick={() => applicaMovimentoMagazzino("prelievo")}
-                    variant="outline"
-                    className="border-status-rosso/50 text-status-rosso hover:bg-status-rosso/10"
+                    className="h-9 shrink-0 border-status-rosso/50 text-status-rosso hover:bg-status-rosso/10 hover:text-status-rosso"
                   >
                     Applica prelievo
                   </Button>
                   <Button
                     type="button"
                     size="sm"
+                    variant="outline"
                     disabled={movimentoSaving}
                     onClick={() => applicaMovimentoMagazzino("carico")}
-                    className="bg-status-blu text-white hover:bg-status-blu/90"
+                    className="h-9 shrink-0 border-status-verde/50 text-status-verde hover:bg-status-verde/10 hover:text-status-verde"
                   >
                     Aggiungi stock
                   </Button>

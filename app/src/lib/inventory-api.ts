@@ -150,7 +150,8 @@ export async function fetchInventoryItems(): Promise<UnifiedItem[]> {
   const { data, error } = await getSupabase()
     .from("inventory_items")
     .select("*")
-    .order("id", { ascending: true });
+    .order("updated_at", { ascending: false })
+    .order("id", { ascending: false });
 
   if (error) throw error;
   return (data ?? []).map(rowToUnified);
