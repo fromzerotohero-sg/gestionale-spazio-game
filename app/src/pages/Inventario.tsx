@@ -96,6 +96,13 @@ import {
   type GradoFormMode,
 } from "@/lib/inventory-grado";
 import {
+  TIPO_CUSTOM_VALUE,
+  buildMonitorTipoOptions,
+  resolveTipoValue,
+  tipoToFormState,
+  type TipoFormMode,
+} from "@/lib/inventory-monitor-tipo";
+import {
   OPERATORS,
   getStoredOperatore,
   setStoredOperatore,
@@ -469,6 +476,8 @@ export default function Inventario() {
   const [modalBancaleStatoNota, setModalBancaleStatoNota] = useState("");
   const [modalGradoMode, setModalGradoMode] = useState<GradoFormMode>("A");
   const [modalGradoCustom, setModalGradoCustom] = useState("");
+  const [modalTipoMode, setModalTipoMode] = useState<TipoFormMode>("LED19");
+  const [modalTipoCustom, setModalTipoCustom] = useState("");
   const [modalDocInviataAt, setModalDocInviataAt] = useState<Date | undefined>();
   const [modalNullaostaRicevuto, setModalNullaostaRicevuto] = useState(false);
   const [modalNullaostaAt, setModalNullaostaAt] = useState<Date | undefined>();
@@ -512,6 +521,10 @@ export default function Inventario() {
   const queryClient = useQueryClient();
 
   const { data: items = [], isLoading, isError, error } = useInventoryItems();
+  const monitorTipoOptions = useMemo(
+    () => buildMonitorTipoOptions(items),
+    [items],
+  );
   const {
     data: activityRows = [],
     isLoading: activityLoading,
@@ -1391,6 +1404,8 @@ export default function Inventario() {
     setModalBancaleStatoNota("");
     setModalGradoMode("A");
     setModalGradoCustom("");
+    setModalTipoMode("LED19");
+    setModalTipoCustom("");
     setModalDocInviataAt(undefined);
     setModalNullaostaRicevuto(false);
     setModalNullaostaAt(undefined);
@@ -1416,6 +1431,9 @@ export default function Inventario() {
     const gradoForm = gradoToFormState(item.grado);
     setModalGradoMode(gradoForm.mode);
     setModalGradoCustom(gradoForm.custom);
+    const tipoForm = tipoToFormState(item.tipo, monitorTipoOptions);
+    setModalTipoMode(tipoForm.mode);
+    setModalTipoCustom(tipoForm.custom);
     const nullaosta = initSchedaNullaostaFromItem(item);
     setModalDocInviataAt(nullaosta.docInviataAt);
     setModalNullaostaRicevuto(nullaosta.nullaostaRicevuto);
@@ -1579,8 +1597,19 @@ export default function Inventario() {
       toast.error("Inserisci un grado personalizzato");
       return;
     }
+    if (
+      isMonitorForm &&
+      modalTipoMode === TIPO_CUSTOM_VALUE &&
+      !modalTipoCustom.trim()
+    ) {
+      toast.error("Inserisci un tipo personalizzato");
+      return;
+    }
     const gradoSalvato = isMonitorForm
       ? resolveGradoValue(modalGradoMode, modalGradoCustom, "A")
+      : undefined;
+    const tipoSalvato = isMonitorForm
+      ? resolveTipoValue(modalTipoMode, modalTipoCustom, "LED19")
       : undefined;
 
     const isSchedeForm =
@@ -1614,7 +1643,7 @@ export default function Inventario() {
             prezzoUnitario: prezzo,
             fornitore: modalFornitore.trim() || null,
             sede,
-            tipo: (formData.get("tipo") as string) || editingItem.tipo,
+            tipo: tipoSalvato ?? editingItem.tipo,
             modello: (formData.get("modello") as string) || editingItem.modello,
             marca: (formData.get("marca") as string) || editingItem.marca,
             ...(isMonitorForm ? { grado: gradoSalvato } : {}),
@@ -1668,7 +1697,7 @@ export default function Inventario() {
             ...(cat === "schede" ? schedeNullaostaPatch : {}),
             ...(cat === "monitor"
               ? {
-                  tipo: (formData.get("tipo") as string) || "LED19",
+                  tipo: tipoSalvato ?? "LED19",
                   modello: (formData.get("modello") as string) || "",
                   marca: (formData.get("marca") as string) || "",
                   grado: gradoSalvato ?? "A",
@@ -2932,17 +2961,32 @@ export default function Inventario() {
                       Tipo *
                     </Label>
                     <select
-                      name="tipo"
-                      defaultValue={editingItem?.tipo || "LED19"}
-                      required
+                      value={modalTipoMode}
+                      onChange={(e) => {
+                        const v = e.target.value as TipoFormMode;
+                        setModalTipoMode(v);
+                        if (v !== TIPO_CUSTOM_VALUE) setModalTipoCustom("");
+                      }}
                       className="h-9 w-full rounded-md border border-border-default bg-bg-elevated px-3 text-text-primary text-sm focus:border-accent-primary focus:outline-none"
                     >
-                      <option>LCD19</option>
-                      <option>LED19</option>
-                      <option>LED22</option>
-                      <option>LCD 16:10</option>
-                      <option>LED 16:10</option>
+                      {monitorTipoOptions.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                      <option value={TIPO_CUSTOM_VALUE}>
+                        Altro (testo libero)
+                      </option>
                     </select>
+                    {modalTipoMode === TIPO_CUSTOM_VALUE && (
+                      <Input
+                        value={modalTipoCustom}
+                        onChange={(e) => setModalTipoCustom(e.target.value)}
+                        placeholder="es. 20, 17, 27..."
+                        required
+                        className="mt-2 bg-bg-elevated border-border-default"
+                      />
+                    )}
                   </div>
                   <div>
                     <Label className="text-text-secondary mb-1.5 block">

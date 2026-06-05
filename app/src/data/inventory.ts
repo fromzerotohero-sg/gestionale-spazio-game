@@ -43,37 +43,8 @@ export const SEDI: Sede[] = ['Magazzino Principale', 'Limena', 'Magazzino Angelo
 
 export const GRADI: MonitorGrado[] = ['A', 'B', 'C'];
 
-// ─────────── SCHEDE (28 items, total €26.900) ───────────
-export const schedeData: BaseItem[] = [
-  { id: 'SC-001', nome: 'ATOMIC', quantita: 1, prezzoUnitario: 535, totale: 535, note: 'LIMENA', sede: 'Limena' },
-  { id: 'SC-002', nome: '4 IN 1', quantita: 1, prezzoUnitario: 600, totale: 600, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-003', nome: 'ALADDIN', quantita: 1, prezzoUnitario: 450, totale: 450, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-004', nome: 'BALLOON', quantita: 2, prezzoUnitario: 625, totale: 1250, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-005', nome: 'BARN', quantita: 1, prezzoUnitario: 350, totale: 350, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-006', nome: 'BARON', quantita: 1, prezzoUnitario: 500, totale: 500, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-007', nome: 'BATTLE', quantita: 1, prezzoUnitario: 400, totale: 400, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-008', nome: 'BEACH', quantita: 1, prezzoUnitario: 300, totale: 300, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-009', nome: 'BILLION', quantita: 1, prezzoUnitario: 850, totale: 850, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-010', nome: 'BINGO', quantita: 1, prezzoUnitario: 450, totale: 450, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-011', nome: 'BOMBER', quantita: 1, prezzoUnitario: 500, totale: 500, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-012', nome: 'BULL', quantita: 1, prezzoUnitario: 600, totale: 600, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-013', nome: 'CAMELOT', quantita: 1, prezzoUnitario: 500, totale: 500, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-014', nome: 'CASH 200', quantita: 2, prezzoUnitario: 550, totale: 1100, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-015', nome: 'CASH 200+', quantita: 1, prezzoUnitario: 600, totale: 600, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-016', nome: 'CLEOPATRA', quantita: 1, prezzoUnitario: 800, totale: 800, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-017', nome: 'CRAZY', quantita: 1, prezzoUnitario: 900, totale: 900, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-018', nome: 'CROWN', quantita: 1, prezzoUnitario: 700, totale: 700, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-019', nome: 'CIRCUS', quantita: 1, prezzoUnitario: 750, totale: 750, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-020', nome: 'DOLPHIN', quantita: 1, prezzoUnitario: 950, totale: 950, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-021', nome: 'DRAGON', quantita: 1, prezzoUnitario: 1100, totale: 1100, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-022', nome: 'EASY', quantita: 1, prezzoUnitario: 850, totale: 850, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-023', nome: 'EUROPA', quantita: 1, prezzoUnitario: 1200, totale: 1200, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-024', nome: 'FUTURE', quantita: 1, prezzoUnitario: 1000, totale: 1000, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-025', nome: 'GOLD', quantita: 1, prezzoUnitario: 1300, totale: 1300, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-026', nome: 'HIGHWAY', quantita: 1, prezzoUnitario: 1050, totale: 1050, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-027', nome: 'HOTEL', quantita: 1, prezzoUnitario: 950, totale: 950, note: '', sede: 'Magazzino Principale' },
-  { id: 'SC-028', nome: 'KING', quantita: 1, prezzoUnitario: 1400, totale: 1400, note: '', sede: 'Magazzino Principale' },
-];
+// ─────────── SCHEDE (vuoto: il cliente inserisce i dati reali) ───────────
+export const schedeData: BaseItem[] = [];
 
 // ─────────── CABINET (25 items, total €32.210) ───────────
 export const cabinetData: BaseItem[] = [
