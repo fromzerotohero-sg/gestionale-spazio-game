@@ -57,6 +57,10 @@ export function formatLabelModello(item: UnifiedItem): string {
   return modello || marca || "—";
 }
 
+export function formatLabelGrado(item: UnifiedItem): string {
+  return item.grado?.trim() || "—";
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -74,7 +78,10 @@ function getLabelRows(item: UnifiedItem): {
     { label: "Tipo prodotto", format: formatLabelTipoProdotto },
   ];
   if (item.categoria === "monitor") {
-    rows.push({ label: "Modello", format: formatLabelModello });
+    rows.push(
+      { label: "Modello", format: formatLabelModello },
+      { label: "Grado", format: formatLabelGrado },
+    );
   }
   rows.push(
     { label: "Data", format: () => formatLabelDataStampa() },
@@ -119,10 +126,10 @@ export function buildLabelPrintDocument(item: UnifiedItem): string {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 2.5mm;
+    gap: 2mm;
   }
   .title {
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -132,20 +139,20 @@ export function buildLabelPrintDocument(item: UnifiedItem): string {
     display: grid;
     grid-template-columns: 28mm 1fr;
     column-gap: 2mm;
-    row-gap: 1.6mm;
-    font-size: 9.5pt;
+    row-gap: 1.3mm;
+    font-size: 9pt;
     line-height: 1.2;
   }
   .row { display: contents; }
   .lbl {
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 8.5pt;
+    font-size: 8pt;
     letter-spacing: 0.02em;
   }
   .val {
     font-weight: 700;
-    font-size: 11pt;
+    font-size: 10pt;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
