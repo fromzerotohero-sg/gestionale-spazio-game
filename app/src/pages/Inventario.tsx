@@ -115,7 +115,6 @@ import {
   resolveQuantityAction,
 } from "@/lib/inventory-tracking";
 import { MovimentiCronologia } from "@/components/inventory/MovimentiCronologia";
-import { InventoryLabelSheet } from "@/components/inventory/InventoryLabelSheet";
 import {
   SchedaNullaostaPanel,
   initSchedaNullaostaFromItem,
@@ -514,7 +513,6 @@ export default function Inventario() {
   const [notaSaving, setNotaSaving] = useState(false);
   const [showNoteSection, setShowNoteSection] = useState(false);
   const [showCronologiaSection, setShowCronologiaSection] = useState(false);
-  const [labelPrintItems, setLabelPrintItems] = useState<UnifiedItem[]>([]);
   const [labelSearchArticolo, setLabelSearchArticolo] = useState("");
   const [labelSearchBancale, setLabelSearchBancale] = useState("");
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -623,14 +621,12 @@ export default function Inventario() {
         `Trovati ${targetItems.length} articoli: viene stampata un'etichetta (${toPrint[0].id}). Affina la ricerca per un altro.`,
       );
     }
-    setLabelPrintItems(toPrint);
-    window.setTimeout(() => {
-      triggerBrowserLabelPrint(() => setLabelPrintItems([]));
+    triggerBrowserLabelPrint(toPrint[0], () => {
       toast.success(
-        `Etichetta pronta: ${toPrint[0].nome}. Nel dialogo stampa disattiva intestazioni e piè di pagina.`,
-        { duration: 6000 },
+        `Etichetta pronta: ${toPrint[0].nome}. Nel dialogo: formato 100×50 mm, niente intestazioni/piè di pagina, scala 100%.`,
+        { duration: 7000 },
       );
-    }, 200);
+    });
   }
 
   function stampaEtichettaDaToolbar() {
@@ -3274,7 +3270,6 @@ export default function Inventario() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <InventoryLabelSheet items={labelPrintItems} />
     </motion.div>
   );
 }
