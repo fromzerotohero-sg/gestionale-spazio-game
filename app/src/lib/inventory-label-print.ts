@@ -50,6 +50,13 @@ export function formatLabelVerificato(item: UnifiedItem): string {
   return item.bancaleVerificato ? "Sì" : "No";
 }
 
+export function formatLabelModello(item: UnifiedItem): string {
+  const modello = item.modello?.trim();
+  const marca = item.marca?.trim();
+  if (marca && modello) return `${marca} ${modello}`;
+  return modello || marca || "—";
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -58,20 +65,28 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-const LABEL_ROWS: {
+function getLabelRows(item: UnifiedItem): {
   label: string;
   format: (item: UnifiedItem) => string;
-}[] = [
-  { label: "Cliente", format: formatLabelCliente },
-  { label: "Tipo prodotto", format: formatLabelTipoProdotto },
-  { label: "Data", format: () => formatLabelDataStampa() },
-  { label: "Verificato", format: formatLabelVerificato },
-  { label: "Quantità", format: (item) => String(item.quantita) },
-];
+}[] {
+  const rows: { label: string; format: (item: UnifiedItem) => string }[] = [
+    { label: "Cliente", format: formatLabelCliente },
+    { label: "Tipo prodotto", format: formatLabelTipoProdotto },
+  ];
+  if (item.categoria === "monitor") {
+    rows.push({ label: "Modello", format: formatLabelModello });
+  }
+  rows.push(
+    { label: "Data", format: () => formatLabelDataStampa() },
+    { label: "Verificato", format: formatLabelVerificato },
+    { label: "Quantità", format: (item) => String(item.quantita) },
+  );
+  return rows;
+}
 
 /** Documento HTML isolato: un solo foglio 100×50 mm */
 export function buildLabelPrintDocument(item: UnifiedItem): string {
-  const rows = LABEL_ROWS.map(
+  const rows = getLabelRows(item).map(
     ({ label, format }) =>
       `<div class="row"><span class="lbl">${escapeHtml(label)}</span><span class="val">${escapeHtml(format(item))}</span></div>`,
   ).join("");
@@ -117,8 +132,8 @@ export function buildLabelPrintDocument(item: UnifiedItem): string {
     display: grid;
     grid-template-columns: 28mm 1fr;
     column-gap: 2mm;
-    row-gap: 2mm;
-    font-size: 10pt;
+    row-gap: 1.6mm;
+    font-size: 9.5pt;
     line-height: 1.2;
   }
   .row { display: contents; }
