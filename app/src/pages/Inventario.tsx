@@ -120,6 +120,7 @@ import {
   initSchedaNullaostaFromItem,
 } from "@/components/inventory/SchedaNullaostaPanel";
 import { SchedePrenotatePanel } from "@/components/inventory/SchedePrenotatePanel";
+import { SchedeTrasferimentoSedePanel } from "@/components/inventory/SchedeTrasferimentoSedePanel";
 import {
   BancaleStatoOperativoBadge,
   BancaleStatoOperativoPanel,
@@ -139,13 +140,18 @@ import {
 import {
   inventoryActivityQueryKey,
   useCreateInventoryItem,
+  useDeleteInventoryActivity,
   useDeleteInventoryItems,
   useInventoryActivity,
   useInventoryItems,
+  useTransferSchedaSede,
   useUpdateInventoryItem,
 } from "@/hooks/use-inventory";
 import { nextInventoryId } from "@/lib/inventory-api";
-import type { UnifiedItem } from "@/types/inventory";
+import type {
+  InventoryActivityEntry,
+  UnifiedItem,
+} from "@/types/inventory";
 import { Spinner } from "@/components/ui/spinner";
 
 type EditingCell = { rowId: string; columnId: string } | null;
@@ -194,6 +200,7 @@ const GRADO_COLORS: Record<string, string> = {
 const COLUMN_LABELS: Record<string, string> = {
   id: "ID",
   nome: "Articolo",
+  fornitore: "Fornitore",
   tipo: "Tipo",
   modello: "Modello",
   marca: "Marca",
@@ -467,6 +474,7 @@ export default function Inventario() {
   const [filterPriceMax, setFilterPriceMax] = useState("");
   const [filterGrado, setFilterGrado] = useState("");
   const [filterSede, setFilterSede] = useState("");
+  const [filterFornitore, setFilterFornitore] = useState("");
   const [filterBancaleVerifica, setFilterBancaleVerifica] =
     useState<FilterBancaleVerifica>("tutti");
   const [modalBancaleVerificato, setModalBancaleVerificato] = useState(false);
@@ -510,6 +518,10 @@ export default function Inventario() {
   const [movimentoQuantita, setMovimentoQuantita] = useState("");
   const [movimentoNote, setMovimentoNote] = useState("");
   const [movimentoSaving, setMovimentoSaving] = useState(false);
+  const [trasferimentoQty, setTrasferimentoQty] = useState("");
+  const [trasferimentoSedeDest, setTrasferimentoSedeDest] =
+    useState<Sede>("Limena");
+  const [trasferimentoNote, setTrasferimentoNote] = useState("");
   const [notaSaving, setNotaSaving] = useState(false);
   const [showNoteSection, setShowNoteSection] = useState(false);
   const [showCronologiaSection, setShowCronologiaSection] = useState(false);
@@ -533,6 +545,8 @@ export default function Inventario() {
   );
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
+  const transferSchedaSede = useTransferSchedaSede();
+  const deleteActivity = useDeleteInventoryActivity();
   const deleteItems = useDeleteInventoryItems();
 
   useEffect(() => {
@@ -712,6 +726,19 @@ export default function Inventario() {
     }
   }, [searchParams, tabs]);
 
+  const fornitoreFilterOptions = useMemo(() => {
+    const source =
+      activeTab === "tutti"
+        ? items
+        : items.filter((i) => i.categoria === activeTab);
+    const names = new Set<string>();
+    for (const item of source) {
+      const f = item.fornitore?.trim();
+      if (f) names.add(f);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, "it"));
+  }, [items, activeTab]);
+
   const handleTabChange = useCallback(
     (tab: Category | "tutti") => {
       setActiveTab(tab);
@@ -741,6 +768,7 @@ export default function Inventario() {
           (i.modello || "").toLowerCase().includes(q) ||
           (i.marca || "").toLowerCase().includes(q) ||
           (i.tipo || "").toLowerCase().includes(q) ||
+          (i.fornitore || "").toLowerCase().includes(q) ||
           i.quantita.toString().includes(q) ||
           i.prezzoUnitario.toString().includes(q),
       );
@@ -768,6 +796,10 @@ export default function Inventario() {
       data = data.filter((i) => i.sede === filterSede);
     }
 
+    if (filterFornitore) {
+      data = data.filter((i) => (i.fornitore || "").trim() === filterFornitore);
+    }
+
     if (activeTab !== "schede") {
       if (filterBancaleVerifica === "verificati") {
         data = data.filter((i) => i.bancaleVerificato);
@@ -787,6 +819,7 @@ export default function Inventario() {
     filterPriceMax,
     filterGrado,
     filterSede,
+    filterFornitore,
     filterBancaleVerifica,
   ]);
 
@@ -846,6 +879,24 @@ export default function Inventario() {
           </div>
         ),
         size: 220,
+      }),
+      colH.accessor((row) => row.fornitore?.trim() || "", {
+        id: "fornitore",
+        header: ({ column }) => (
+          <SortableColumnHeader label="Fornitore" column={column} />
+        ),
+        cell: ({ getValue }) => {
+          const v = getValue();
+          return (
+            <span
+              className="font-body-small text-text-secondary truncate max-w-[160px] block"
+              title={v || undefined}
+            >
+              {v || "—"}
+            </span>
+          );
+        },
+        size: 150,
       }),
       colH.accessor("quantita", {
         header: ({ column }) => (
@@ -1290,9 +1341,10 @@ export default function Inventario() {
         monitorExtraCols[0], // tipo
         monitorExtraCols[1], // modello
         monitorExtraCols[2], // marca
-        baseColumns[3], // quantita
+        baseColumns[3], // fornitore
+        baseColumns[4], // quantita
         {
-          ...baseColumns[4],
+          ...baseColumns[5],
           header: ({ column }: { column: any }) => (
             <button
               onClick={() => column.toggleSorting()}
@@ -1321,10 +1373,11 @@ export default function Inventario() {
         baseColumns[0],
         baseColumns[1],
         categoriaColumn,
-        baseColumns[2],
-        baseColumns[3],
-        baseColumns[4],
-        baseColumns[5],
+        baseColumns[2], // articolo
+        baseColumns[3], // fornitore
+        baseColumns[4], // quantita
+        baseColumns[5], // prezzo
+        baseColumns[6], // totale
         noteColumn,
         sedeColumn,
         verificaBancaleColumn,
@@ -1407,6 +1460,9 @@ export default function Inventario() {
     setModalNullaostaAt(undefined);
     setMovimentoQuantita("");
     setMovimentoNote("");
+    setTrasferimentoQty("");
+    setTrasferimentoNote("");
+    setTrasferimentoSedeDest("Limena");
     setItemModalOpen(true);
   }
 
@@ -1436,6 +1492,10 @@ export default function Inventario() {
     setModalNullaostaAt(nullaosta.nullaostaRicevutoAt);
     setMovimentoQuantita("");
     setMovimentoNote("");
+    setTrasferimentoQty("");
+    setTrasferimentoNote("");
+    const altreSedi = SEDI.filter((s) => s !== item.sede);
+    setTrasferimentoSedeDest(altreSedi[0] ?? "Limena");
     setItemModalOpen(true);
   }
 
@@ -1539,6 +1599,86 @@ export default function Inventario() {
         },
         onError: () => toast.error("Errore registrazione movimento"),
         onSettled: () => setMovimentoSaving(false),
+      },
+    );
+  }
+
+  function applicaTrasferimentoSede() {
+    const op = requireOperatore();
+    if (!op || !editingItem || editingItem.categoria !== "schede") return;
+    const qty = Number(trasferimentoQty);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      toast.error("Inserisci una quantità valida");
+      return;
+    }
+    if (qty > modalQuantita) {
+      toast.error(`Massimo ${modalQuantita} pezzi trasferibili`);
+      return;
+    }
+
+    const source = { ...editingItem, quantita: modalQuantita };
+    const destLabel = trasferimentoSedeDest;
+
+    transferSchedaSede.mutate(
+      {
+        allItems: items,
+        source,
+        qty,
+        destSede: trasferimentoSedeDest,
+        operatore: op,
+        note: trasferimentoNote,
+      },
+      {
+        onSuccess: (result) => {
+          setTrasferimentoQty("");
+          setTrasferimentoNote("");
+          void queryClient.invalidateQueries({
+            queryKey: inventoryActivityQueryKey(editingItem.id),
+          });
+          if (result.destination.id !== editingItem.id) {
+            void queryClient.invalidateQueries({
+              queryKey: inventoryActivityQueryKey(result.destination.id),
+            });
+          }
+          if (result.source) {
+            setEditingItem(result.source);
+            setModalQuantita(result.source.quantita);
+            toast.success(
+              `Trasferiti ${qty} pezzi verso ${destLabel}${result.merged ? " · sommati su riga esistente" : ""}`,
+              { duration: 5000 },
+            );
+          } else {
+            toast.success(
+              `Trasferiti ${qty} pezzi verso ${destLabel}. Nessuna giacenza rimasta in ${source.sede}.`,
+              { duration: 5000 },
+            );
+            setItemModalOpen(false);
+            setEditingItem(null);
+          }
+        },
+        onError: (err) =>
+          toast.error(
+            err instanceof Error ? err.message : "Errore trasferimento",
+          ),
+      },
+    );
+  }
+
+  function eliminaVoceCronologia(entry: InventoryActivityEntry) {
+    const op = requireOperatore();
+    if (!op) return;
+    if (
+      !window.confirm(
+        "Eliminare questa voce dalla cronologia? La giacenza attuale dell'articolo non viene modificata.",
+      )
+    ) {
+      return;
+    }
+    deleteActivity.mutate(
+      { id: entry.id, itemId: entry.itemId },
+      {
+        onSuccess: () => toast.success("Voce cronologia eliminata"),
+        onError: () => toast.error("Errore eliminazione cronologia"),
       },
     );
   }
@@ -1727,6 +1867,7 @@ export default function Inventario() {
     setFilterPriceMax("");
     setFilterGrado("");
     setFilterSede("");
+    setFilterFornitore("");
     setFilterBancaleVerifica("tutti");
   }
 
@@ -1738,6 +1879,7 @@ export default function Inventario() {
     filterPriceMax ||
     filterGrado ||
     filterSede ||
+    filterFornitore ||
     (activeTab !== "schede" && filterBancaleVerifica !== "tutti"),
   );
 
@@ -2393,6 +2535,23 @@ export default function Inventario() {
               )}
               <div>
                 <Label className="font-caption text-text-muted mb-1.5 block">
+                  Fornitore
+                </Label>
+                <select
+                  value={filterFornitore}
+                  onChange={(e) => setFilterFornitore(e.target.value)}
+                  className="h-9 w-full rounded-md border border-border-default bg-bg-elevated px-3 text-text-primary text-sm focus:border-accent-primary focus:outline-none"
+                >
+                  <option value="">Tutti</option>
+                  {fornitoreFilterOptions.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label className="font-caption text-text-muted mb-1.5 block">
                   Sede
                 </Label>
                 <select
@@ -2476,6 +2635,14 @@ export default function Inventario() {
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent-muted border border-accent-primary/40 text-accent-primary font-body-small">
                 Grado: {filterGrado}{" "}
                 <button onClick={() => setFilterGrado("")}>
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {filterFornitore && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-accent-muted border border-accent-primary/40 text-accent-primary font-body-small">
+                Fornitore: {filterFornitore}{" "}
+                <button onClick={() => setFilterFornitore("")}>
                   <X size={12} />
                 </button>
               </span>
@@ -2943,8 +3110,30 @@ export default function Inventario() {
                   isError={activityError}
                   open={showCronologiaSection}
                   onOpenChange={setShowCronologiaSection}
+                  onDeleteEntry={eliminaVoceCronologia}
+                  deletingEntryId={
+                    deleteActivity.isPending
+                      ? deleteActivity.variables?.id ?? null
+                      : null
+                  }
+                  deleteDisabled={!operatore}
                 />
               </div>
+            )}
+
+            {editingItem?.categoria === "schede" && (
+              <SchedeTrasferimentoSedePanel
+                item={{ ...editingItem, quantita: modalQuantita }}
+                qty={trasferimentoQty}
+                onQtyChange={setTrasferimentoQty}
+                destSede={trasferimentoSedeDest}
+                onDestSedeChange={setTrasferimentoSedeDest}
+                note={trasferimentoNote}
+                onNoteChange={setTrasferimentoNote}
+                onTransfer={applicaTrasferimentoSede}
+                saving={transferSchedaSede.isPending}
+                disabled={!operatore}
+              />
             )}
 
             {/* Monitor extra fields */}
@@ -3130,6 +3319,17 @@ export default function Inventario() {
                   </option>
                 ))}
               </select>
+              {(activeTab === "schede" ||
+                editingItem?.categoria === "schede") && (
+                <p className="font-caption text-text-muted mt-1.5">
+                  Per spostare solo una parte tra magazzini usa{" "}
+                  <span className="text-text-secondary">
+                    Trasferimento tra sedi
+                  </span>{" "}
+                  sopra. Cambiando qui la sede e salvando si sposta tutta la
+                  quantità.
+                </p>
+              )}
             </div>
 
             {/* Live total */}

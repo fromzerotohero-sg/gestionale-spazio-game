@@ -115,6 +115,17 @@ async function recordActivity(
   });
 }
 
+export async function deleteInventoryActivityEntry(id: string): Promise<void> {
+  if (!isSupabaseConfigured) {
+    throw new Error(supabaseConfigError ?? "Supabase non configurato");
+  }
+  const { error } = await getSupabase()
+    .from("inventory_activity")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchInventoryActivity(
   itemId: string,
 ): Promise<InventoryActivityEntry[]> {

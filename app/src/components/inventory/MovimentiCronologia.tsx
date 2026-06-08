@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -19,12 +20,18 @@ export function MovimentiCronologia({
   isError,
   open,
   onOpenChange,
+  onDeleteEntry,
+  deletingEntryId,
+  deleteDisabled,
 }: {
   entries: InventoryActivityEntry[];
   isLoading?: boolean;
   isError?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDeleteEntry?: (entry: InventoryActivityEntry) => void;
+  deletingEntryId?: string | null;
+  deleteDisabled?: boolean;
 }) {
   return (
     <div className="mt-3 border-t border-border-subtle pt-3">
@@ -106,6 +113,19 @@ export function MovimentiCronologia({
                           {formatRelativeTime(row.createdAt)} · {row.operatore}
                         </p>
                       </div>
+                      {onDeleteEntry && (
+                        <button
+                          type="button"
+                          title="Elimina voce cronologia"
+                          disabled={
+                            deleteDisabled || deletingEntryId === row.id
+                          }
+                          onClick={() => onDeleteEntry(row)}
+                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-text-muted hover:text-status-rosso hover:bg-bg-hover transition-colors disabled:opacity-40"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>

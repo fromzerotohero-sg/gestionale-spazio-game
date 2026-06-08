@@ -2,11 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createInventoryItem,
   deleteInventoryItems,
+  deleteInventoryActivityEntry,
   fetchInventoryActivity,
   fetchInventoryItems,
   updateInventoryItem,
   type InventoryMutationOptions,
 } from "@/lib/inventory-api";
+import { transferSchedaPartial } from "@/lib/scheda-sede-transfer";
+import type { Sede } from "@/data/inventory";
 import type { InventoryRowInput, UnifiedItem } from "@/types/inventory";
 
 export const INVENTORY_QUERY_KEY = ["inventory"] as const;
@@ -25,6 +28,18 @@ export function useInventoryActivity(itemId: string | null, enabled = true) {
     queryKey: inventoryActivityQueryKey(itemId ?? ""),
     queryFn: () => fetchInventoryActivity(itemId!),
     enabled: enabled && !!itemId,
+  });
+}
+
+export function useDeleteInventoryActivity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string; itemId: string }) =>
+      deleteInventoryActivityEntry(id),
+    onSuccess: (_data, { itemId }) =>
+      queryClient.invalidateQueries({
+        queryKey: inventoryActivityQueryKey(itemId),
+      }),
   });
 }
 
@@ -67,6 +82,30 @@ export function useUpdateInventoryItem() {
         skipActivityLog,
         activityNote,
       }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
+  });
+}
+
+export function useTransferSchedaSede() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      allItems,
+      source,
+      qty,
+      destSede,
+      operatore,
+      note,
+    }: {
+      allItems: UnifiedItem[];
+      source: UnifiedItem;
+      qty: number;
+      destSede: Sede;
+      operatore: InventoryMutationOptions["operatore"];
+      note?: string;
+    }) =>
+      transferSchedaPartial(allItems, source, qty, destSede, operatore, note),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY }),
   });
