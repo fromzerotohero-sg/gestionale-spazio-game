@@ -14,7 +14,7 @@ import {
 const routeNames: Record<string, { title: string; breadcrumb: string }> = {
   '/': { title: 'Dashboard', breadcrumb: 'Dashboard' },
   '/inventario': { title: 'Inventario', breadcrumb: 'Inventario' },
-  '/riparazioni': { title: 'Riparazioni', breadcrumb: 'Riparazioni' },
+  '/riparazioni': { title: 'Riparazioni Esterne', breadcrumb: 'Rip. Esterne' },
   '/modulistica': { title: 'Modulistica', breadcrumb: 'Modulistica' },
   '/supporto': { title: 'Supporto', breadcrumb: 'Supporto' },
   '/qr-pvr': { title: 'Generatore QR PVR', breadcrumb: 'QR PVR' },

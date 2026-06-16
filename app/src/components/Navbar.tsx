@@ -15,7 +15,7 @@ import {
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: Package, label: 'Inventario', path: '/inventario' },
-  { icon: Wrench, label: 'Riparazioni', path: '/riparazioni' },
+  { icon: Wrench, label: 'Rip. Esterne', path: '/riparazioni' },
   { icon: FileText, label: 'Modulistica', path: '/modulistica' },
   { icon: QrCode, label: 'QR PVR', path: '/qr-pvr' },
   { icon: Headphones, label: 'Supporto', path: '/supporto' },

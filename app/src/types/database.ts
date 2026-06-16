@@ -6,6 +6,99 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+export interface ExternalRepairRow {
+  id: string;
+  code: string;
+  cliente: string;
+  commessa: string;
+  fabbisogno: string;
+  ubicazione: string;
+  dove_montato: string;
+  descrizione_guasto: string;
+  descrizione_riparazione: string;
+  tecnico: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+  data_inizio: string;
+  data_fine: string | null;
+  tempo_impiegato_minuti: number;
+  fornitore: string;
+  data_invio: string | null;
+  consegna_prevista: string | null;
+  data_rientro: string | null;
+  stato:
+    | "da_inviare"
+    | "inviato"
+    | "in_riparazione"
+    | "rientrato"
+    | "montato"
+    | "chiuso";
+  materiali: Json;
+  lavori: Json;
+  timeline: Json;
+  note: string;
+  created_at: string;
+  updated_at: string;
+  created_by: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+  updated_by: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+}
+
+export interface ExternalRepairInsert {
+  id?: string;
+  code: string;
+  cliente?: string;
+  commessa?: string;
+  fabbisogno?: string;
+  ubicazione?: string;
+  dove_montato?: string;
+  descrizione_guasto?: string;
+  descrizione_riparazione?: string;
+  tecnico?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+  data_inizio?: string;
+  data_fine?: string | null;
+  tempo_impiegato_minuti?: number;
+  fornitore?: string;
+  data_invio?: string | null;
+  consegna_prevista?: string | null;
+  data_rientro?: string | null;
+  stato?: string;
+  materiali?: Json;
+  lavori?: Json;
+  timeline?: Json;
+  note?: string;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+  updated_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+}
+
+export interface ExternalRepairUpdate {
+  id?: string;
+  code?: string;
+  cliente?: string;
+  commessa?: string;
+  fabbisogno?: string;
+  ubicazione?: string;
+  dove_montato?: string;
+  descrizione_guasto?: string;
+  descrizione_riparazione?: string;
+  tecnico?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+  data_inizio?: string;
+  data_fine?: string | null;
+  tempo_impiegato_minuti?: number;
+  fornitore?: string;
+  data_invio?: string | null;
+  consegna_prevista?: string | null;
+  data_rientro?: string | null;
+  stato?: string;
+  materiali?: Json;
+  lavori?: Json;
+  timeline?: Json;
+  note?: string;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+  updated_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -214,6 +307,12 @@ export type Database = {
         Row: Record<string, unknown>;
         Insert: Record<string, unknown>;
         Update: Record<string, unknown>;
+        Relationships: [];
+      };
+      external_repairs: {
+        Row: ExternalRepairRow;
+        Insert: ExternalRepairInsert;
+        Update: ExternalRepairUpdate;
         Relationships: [];
       };
       documents: {
