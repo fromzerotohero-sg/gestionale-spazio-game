@@ -15,12 +15,26 @@ import {
   ArrowRight,
   Truck,
   RefreshCw,
+  CalendarIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select as SelectRoot,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   fetchExternalRepairs,
   createExternalRepair,
@@ -73,6 +87,55 @@ function StatCard({ label, value, color, delay }: { label: string; value: string
       <p className="font-caption text-text-muted mb-1">{label}</p>
       <p className="font-data-md" style={{ color }}>{value}</p>
     </motion.div>
+  );
+}
+
+/* ──────────────────── DATE PICKER ──────────────────── */
+
+function DatePicker({
+  value,
+  onChange,
+  label,
+  disabled,
+}: {
+  value: string | null;
+  onChange: (val: string | null) => void;
+  label?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const date = value ? new Date(value + "T00:00:00") : undefined;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          className={cn(
+            "justify-start font-normal bg-bg-elevated border-border-default w-full h-10",
+            !value && "text-text-muted",
+          )}
+        >
+          <CalendarIcon className="mr-2 size-4 opacity-70" />
+          {value
+            ? format(date!, "d MMM yyyy", { locale: it })
+            : label || "Scegli data"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 bg-bg-surface border-border-default" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={(d) => {
+            onChange(d ? format(d, "yyyy-MM-dd") : null);
+            if (d) setOpen(false);
+          }}
+          locale={it}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -622,18 +685,15 @@ function RepairModal({
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Data Invio</label>
-                    <Input type="date" value={form.dataInvio || ""} onChange={(e) => uf("dataInvio", e.target.value || null)}
-                      className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
+                    <DatePicker value={form.dataInvio} onChange={(v) => uf("dataInvio", v)} label="Data invio" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Consegna Prevista</label>
-                    <Input type="date" value={form.consegnaPrevista || ""} onChange={(e) => uf("consegnaPrevista", e.target.value || null)}
-                      className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
+                    <DatePicker value={form.consegnaPrevista} onChange={(v) => uf("consegnaPrevista", v)} label="Consegna prevista" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Data Rientro</label>
-                    <Input type="date" value={form.dataRientro || ""} onChange={(e) => uf("dataRientro", e.target.value || null)}
-                      className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
+                    <DatePicker value={form.dataRientro} onChange={(v) => uf("dataRientro", v)} label="Data rientro" />
                   </div>
                 </div>
               </fieldset>
@@ -646,21 +706,22 @@ function RepairModal({
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Tecnico</label>
-                    <select value={form.tecnico || ""} onChange={(e) => uf("tecnico", (e.target.value || null) as Operatore | null)}
-                      className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors appearance-none">
-                      <option value="">--</option>
-                      {OPERATORI.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
+                    <SelectRoot value={form.tecnico || ""} onValueChange={(v) => uf("tecnico", (v || null) as Operatore | null)}>
+                      <SelectTrigger className="w-full bg-bg-base border-border-default">
+                        <SelectValue placeholder="--" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-bg-surface border-border-default">
+                        {OPERATORI.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </SelectRoot>
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Data Inizio</label>
-                    <Input type="date" value={form.dataInizio} onChange={(e) => uf("dataInizio", e.target.value)}
-                      className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
+                    <DatePicker value={form.dataInizio} onChange={(v) => uf("dataInizio", v || format(new Date(), "yyyy-MM-dd"))} label="Data inizio" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Data Fine</label>
-                    <Input type="date" value={form.dataFine || ""} onChange={(e) => uf("dataFine", e.target.value || null)}
-                      className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
+                    <DatePicker value={form.dataFine} onChange={(v) => uf("dataFine", v)} label="Data fine" />
                   </div>
                 </div>
               </fieldset>
@@ -683,11 +744,14 @@ function RepairModal({
                       placeholder="Descrizione lavoro" className="flex-1 h-9 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary text-sm" />
                     <Input type="number" value={l.tempoMinuti || ""} onChange={(e) => updLav(i, "tempoMinuti", parseInt(e.target.value) || 0)}
                       placeholder="Minuti" min={0} className="w-20 h-9 bg-bg-base border border-border-default rounded-md px-2 font-body text-text-primary text-center focus:outline-none focus:border-accent-primary text-sm" />
-                    <select value={l.tecnico} onChange={(e) => updLav(i, "tecnico", e.target.value)}
-                      className="w-[130px] h-9 bg-bg-base border border-border-default rounded-md px-2 font-body text-text-primary text-sm focus:outline-none focus:border-accent-primary appearance-none">
-                      <option value="">Tecnico</option>
-                      {OPERATORI.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
+                    <SelectRoot value={l.tecnico} onValueChange={(v) => updLav(i, "tecnico", v)}>
+                      <SelectTrigger className="w-[130px] bg-bg-base border-border-default text-sm h-9">
+                        <SelectValue placeholder="Tecnico" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-bg-surface border-border-default">
+                        {OPERATORI.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </SelectRoot>
                     <button type="button" onClick={() => delLav(i)}
                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-status-rosso/20 text-text-muted hover:text-status-rosso transition-colors flex-shrink-0">
                       <X size={14} />
