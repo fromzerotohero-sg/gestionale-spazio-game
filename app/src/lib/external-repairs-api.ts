@@ -1,5 +1,5 @@
 ﻿import { getSupabase, isSupabaseConfigured, supabaseConfigError } from "@/lib/supabase";
-import type { Database, ExternalRepairRow } from "@/types/database";
+import type { Database } from "@/types/database";
 
 export type Operatore = "Giangrossi" | "Irene" | "Matteo" | "Paolo";
 
@@ -118,7 +118,7 @@ export function generaCodice(esistenti: string[]): string {
 
 /* ─────────── MAPPERS ─────────── */
 
-function rowToRepair(row: ExternalRepairRow): ExternalRepair {
+function rowToRepair(row: Database["public"]["Tables"]["external_repairs"]["Row"]): ExternalRepair {
   return {
     id: row.id,
     code: row.code,
@@ -263,7 +263,6 @@ export async function updateExternalRepair(
 
   const { data, error } = await (getSupabase()
     .from("external_repairs")
-    // @ts-expect-error - Database generic type inference issue
     .update(updateRow as any)
     .eq("id", id)
     .select()
