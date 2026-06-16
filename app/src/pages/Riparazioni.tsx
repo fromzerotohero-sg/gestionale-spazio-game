@@ -19,6 +19,8 @@ import {
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   fetchExternalRepairs,
   createExternalRepair,
@@ -418,27 +420,18 @@ function DetailPanel({
 
             {/* Footer Actions */}
             <div className="sticky bottom-0 bg-bg-elevated border-t border-border-subtle p-4 flex items-center gap-3">
-              <button
-                onClick={() => onEdit(repair)}
-                className="flex-1 h-10 rounded-lg border border-border-default text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors font-body"
-              >
+              <Button variant="outline" className="flex-1" onClick={() => onEdit(repair)}>
                 Modifica
-              </button>
+              </Button>
               {prossimo && (
-                <button
-                  onClick={() => onAvanzamento(repair, prossimo)}
-                  className="h-10 px-4 rounded-lg bg-accent-primary text-bg-base font-semibold hover:bg-accent-secondary transition-colors font-body flex items-center gap-2"
-                >
+                <Button onClick={() => onAvanzamento(repair, prossimo)} className="flex items-center gap-2">
                   <ArrowRight size={16} />
                   {STATI_ETICHETTE[prossimo]}
-                </button>
+                </Button>
               )}
-              <button
-                onClick={() => onDelete(repair)}
-                className="h-10 px-4 rounded-lg text-status-rosso hover:bg-status-rosso/10 transition-colors font-body"
-              >
+              <Button variant="destructive" onClick={() => onDelete(repair)}>
                 Elimina
-              </button>
+              </Button>
             </div>
           </motion.div>
         </>
@@ -562,17 +555,17 @@ function RepairModal({
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Cliente <span className="text-status-rosso">*</span></label>
-                    <input type="text" value={form.cliente} onChange={(e) => uf("cliente", e.target.value)} placeholder="Nome cliente"
+                    <Input type="text" value={form.cliente} onChange={(e) => uf("cliente", e.target.value)} placeholder="Nome cliente"
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" required />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Commessa</label>
-                    <input type="text" value={form.commessa} onChange={(e) => uf("commessa", e.target.value)} placeholder="N. commessa"
+                    <Input type="text" value={form.commessa} onChange={(e) => uf("commessa", e.target.value)} placeholder="N. commessa"
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Fabbisogno</label>
-                    <input type="text" value={form.fabbisogno} onChange={(e) => uf("fabbisogno", e.target.value)} placeholder="Ordine di rif."
+                    <Input type="text" value={form.fabbisogno} onChange={(e) => uf("fabbisogno", e.target.value)} placeholder="Ordine di rif."
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                 </div>
@@ -586,12 +579,12 @@ function RepairModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Ubicazione Attuale</label>
-                    <input type="text" value={form.ubicazione} onChange={(e) => uf("ubicazione", e.target.value)} placeholder="Es. Magazzino, Limena..."
+                    <Input type="text" value={form.ubicazione} onChange={(e) => uf("ubicazione", e.target.value)} placeholder="Es. Magazzino, Limena..."
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Montato su (dopo rientro)</label>
-                    <input type="text" value={form.dove_montato} onChange={(e) => uf("dove_montato", e.target.value)} placeholder="Cabinet / Postazione / Scheda"
+                    <Input type="text" value={form.dove_montato} onChange={(e) => uf("dove_montato", e.target.value)} placeholder="Cabinet / Postazione / Scheda"
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                 </div>
@@ -624,22 +617,22 @@ function RepairModal({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Fornitore / Laboratorio</label>
-                    <input type="text" value={form.fornitore} onChange={(e) => uf("fornitore", e.target.value)} placeholder="Nome fornitore"
+                    <Input type="text" value={form.fornitore} onChange={(e) => uf("fornitore", e.target.value)} placeholder="Nome fornitore"
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Data Invio</label>
-                    <input type="date" value={form.dataInvio || ""} onChange={(e) => uf("dataInvio", e.target.value || null)}
+                    <Input type="date" value={form.dataInvio || ""} onChange={(e) => uf("dataInvio", e.target.value || null)}
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Consegna Prevista</label>
-                    <input type="date" value={form.consegnaPrevista || ""} onChange={(e) => uf("consegnaPrevista", e.target.value || null)}
+                    <Input type="date" value={form.consegnaPrevista || ""} onChange={(e) => uf("consegnaPrevista", e.target.value || null)}
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Data Rientro</label>
-                    <input type="date" value={form.dataRientro || ""} onChange={(e) => uf("dataRientro", e.target.value || null)}
+                    <Input type="date" value={form.dataRientro || ""} onChange={(e) => uf("dataRientro", e.target.value || null)}
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                 </div>
@@ -661,12 +654,12 @@ function RepairModal({
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Data Inizio</label>
-                    <input type="date" value={form.dataInizio} onChange={(e) => uf("dataInizio", e.target.value)}
+                    <Input type="date" value={form.dataInizio} onChange={(e) => uf("dataInizio", e.target.value)}
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                   <div>
                     <label className="block font-body-small text-text-secondary mb-1.5">Data Fine</label>
-                    <input type="date" value={form.dataFine || ""} onChange={(e) => uf("dataFine", e.target.value || null)}
+                    <Input type="date" value={form.dataFine || ""} onChange={(e) => uf("dataFine", e.target.value || null)}
                       className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors" />
                   </div>
                 </div>
@@ -686,9 +679,9 @@ function RepairModal({
                 </div>
                 {form.lavori.map((l, i) => (
                   <div key={l.id} className="flex items-center gap-2">
-                    <input type="text" value={l.descrizione} onChange={(e) => updLav(i, "descrizione", e.target.value)}
+                    <Input type="text" value={l.descrizione} onChange={(e) => updLav(i, "descrizione", e.target.value)}
                       placeholder="Descrizione lavoro" className="flex-1 h-9 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary text-sm" />
-                    <input type="number" value={l.tempoMinuti || ""} onChange={(e) => updLav(i, "tempoMinuti", parseInt(e.target.value) || 0)}
+                    <Input type="number" value={l.tempoMinuti || ""} onChange={(e) => updLav(i, "tempoMinuti", parseInt(e.target.value) || 0)}
                       placeholder="Minuti" min={0} className="w-20 h-9 bg-bg-base border border-border-default rounded-md px-2 font-body text-text-primary text-center focus:outline-none focus:border-accent-primary text-sm" />
                     <select value={l.tecnico} onChange={(e) => updLav(i, "tecnico", e.target.value)}
                       className="w-[130px] h-9 bg-bg-base border border-border-default rounded-md px-2 font-body text-text-primary text-sm focus:outline-none focus:border-accent-primary appearance-none">
@@ -721,9 +714,9 @@ function RepairModal({
                 </div>
                 {form.materiali.map((m, i) => (
                   <div key={m.id} className="flex items-center gap-2">
-                    <input type="text" value={m.nome} onChange={(e) => updMat(i, "nome", e.target.value)}
+                    <Input type="text" value={m.nome} onChange={(e) => updMat(i, "nome", e.target.value)}
                       placeholder="Nome materiale" className="flex-1 h-9 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary text-sm" />
-                    <input type="number" value={m.quantita} onChange={(e) => updMat(i, "quantita", parseInt(e.target.value) || 0)}
+                    <Input type="number" value={m.quantita} onChange={(e) => updMat(i, "quantita", parseInt(e.target.value) || 0)}
                       placeholder="Qta" min={1} className="w-16 h-9 bg-bg-base border border-border-default rounded-md px-2 font-body text-text-primary text-center focus:outline-none focus:border-accent-primary text-sm" />
                     <button type="button" onClick={() => delMat(i)}
                       className="w-7 h-7 flex items-center justify-center rounded hover:bg-status-rosso/20 text-text-muted hover:text-status-rosso transition-colors flex-shrink-0">
@@ -742,12 +735,10 @@ function RepairModal({
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-subtle">
-                <button type="button" onClick={handleClose}
-                  className="h-10 px-5 rounded-lg border border-border-default text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors font-body">Annulla</button>
-                <button type="submit"
-                  className="h-10 px-5 rounded-lg bg-accent-primary text-bg-base font-semibold hover:bg-accent-secondary transition-colors font-body">
+                <Button type="button" variant="outline" onClick={handleClose}>Annulla</Button>
+                <Button type="submit">
                   {isEditing ? "Salva Modifiche" : "Crea Riparazione"}
-                </button>
+                </Button>
               </div>
             </form>
           </motion.div>
@@ -904,12 +895,11 @@ export default function Riparazioni() {
             Tracciamento spedizioni a laboratori esterni e fornitori
           </p>
         </div>
-        <button
+        <Button
           onClick={() => { setEditingRepair(null); setShowAddModal(true); }}
-          className="flex items-center gap-2 h-10 px-5 rounded-lg bg-accent-primary text-bg-base font-semibold hover:bg-accent-secondary transition-colors font-body"
         >
           <Plus size={16} /> Nuova Riparazione Esterna
-        </button>
+        </Button>
       </motion.div>
 
       {/* Stats */}
@@ -929,12 +919,12 @@ export default function Riparazioni() {
       >
         <div className="relative flex-1 max-w-md">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cerca codice, cliente, fornitore..."
-            className="w-full h-10 bg-bg-elevated border border-border-subtle rounded-lg pl-10 pr-4 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary transition-colors"
+            className="w-full h-10 bg-bg-elevated border-border-subtle rounded-lg pl-10 font-body"
           />
           {searchQuery && (
             <button onClick={() => setSearchQuery("")}
@@ -943,17 +933,18 @@ export default function Riparazioni() {
             </button>
           )}
         </div>
-        <button onClick={() => setShowFilters(!showFilters)}
-          className={cn("flex items-center gap-2 h-10 px-4 rounded-lg border font-body-small transition-colors",
-            showFilters || activeFilterCount > 0
-              ? "border-accent-primary/40 bg-accent-muted text-accent-primary"
-              : "border-border-subtle text-text-muted hover:text-text-secondary hover:bg-bg-hover")}>
+        <Button
+          variant={showFilters || activeFilterCount > 0 ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+          className={showFilters || activeFilterCount > 0 ? "bg-accent-primary text-bg-base" : ""}
+        >
           <Filter size={16} />
           Filtri
           {activeFilterCount > 0 && (
             <span className="w-5 h-5 rounded-full bg-accent-primary text-bg-base flex items-center justify-center text-xs font-semibold">{activeFilterCount}</span>
           )}
-        </button>
+        </Button>
         {activeFilterCount > 0 && (
           <button onClick={clearFilters} className="font-body-small text-text-muted hover:text-status-rosso transition-colors">Cancella filtri</button>
         )}
@@ -1007,7 +998,7 @@ export default function Riparazioni() {
                 </div>
                 <div>
                   <span className="font-caption text-text-muted block mb-2">Fornitore</span>
-                  <input type="text" value={filterFornitore} onChange={(e) => setFilterFornitore(e.target.value)}
+                  <Input type="text" value={filterFornitore} onChange={(e) => setFilterFornitore(e.target.value)}
                     placeholder="Filtra per fornitore..."
                     className="w-full h-9 bg-bg-base border border-border-default rounded-md px-3 font-body text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary text-sm" />
                 </div>
@@ -1025,10 +1016,9 @@ export default function Riparazioni() {
       ) : error ? (
         <div className="bg-status-rosso/10 border border-status-rosso/30 rounded-xl p-6 text-center">
           <p className="font-body text-status-rosso mb-2">{error}</p>
-          <button onClick={caricaDati}
-            className="h-10 px-5 rounded-lg bg-accent-primary text-bg-base font-semibold hover:bg-accent-secondary transition-colors font-body">
+          <Button onClick={caricaDati}>
             Riprova
-          </button>
+          </Button>
         </div>
       ) : (
         <ListaView repairs={filteredRepairs} onRowClick={setDetailRepair} />
