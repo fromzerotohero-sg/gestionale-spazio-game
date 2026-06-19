@@ -10,6 +10,7 @@ export interface Comunicazione {
   messaggio: string;
   urgente: boolean;
   archiviata: boolean;
+  scadenza: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,6 +25,7 @@ function rowToComunicazione(row: Row): Comunicazione {
     messaggio: row.messaggio,
     urgente: row.urgente,
     archiviata: row.archiviata,
+    scadenza: row.scadenza,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -47,17 +49,19 @@ export async function createComunicazione(
   messaggio: string,
   urgente: boolean,
   destinatario: Operatore | null,
+  scadenza: string | null,
 ): Promise<Comunicazione> {
   if (!isSupabaseConfigured) {
     throw new Error(supabaseConfigError ?? "Supabase non configurato");
   }
 
-  const insertRow = {
+  const insertRow: any = {
     autore,
     messaggio,
     urgente,
     destinatario: destinatario ?? null,
   };
+  if (scadenza) insertRow.scadenza = scadenza;
 
   const { data, error } = await (getSupabase()
     .from("comunicazioni" as any)
@@ -75,6 +79,7 @@ export async function updateComunicazione(
     messaggio?: string;
     urgente?: boolean;
     archiviata?: boolean;
+    scadenza?: string | null;
   },
 ): Promise<Comunicazione> {
   if (!isSupabaseConfigured) {
@@ -85,6 +90,7 @@ export async function updateComunicazione(
   if (patch.messaggio !== undefined) updateRow.messaggio = patch.messaggio;
   if (patch.urgente !== undefined) updateRow.urgente = patch.urgente;
   if (patch.archiviata !== undefined) updateRow.archiviata = patch.archiviata;
+  if (patch.scadenza !== undefined) updateRow.scadenza = patch.scadenza;
 
   const { data, error } = await (getSupabase()
     .from("comunicazioni" as any)

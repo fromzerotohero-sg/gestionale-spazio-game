@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Send, X, Mail, Archive, Trash2, AlertTriangle,
-  MessageSquare, User, Clock,
+  MessageSquare, User, Clock, Calendar,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -86,6 +86,18 @@ export default function Supporto() {
         break;
     }
 
+    result.sort((a, b) => {
+      // Items with deadlines come first
+      if (a.scadenza && !b.scadenza) return -1;
+      if (!a.scadenza && b.scadenza) return 1;
+      if (a.scadenza && b.scadenza) {
+        const diff = new Date(a.scadenza).getTime() - new Date(b.scadenza).getTime();
+        if (Math.abs(diff) < 60000) return 0; // same minute -> creation order
+        return diff;
+      }
+      // No deadlines: sort by creation date DESC
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
     return result;
   }, [comunicazioni, filtro, mostraArchiviate]);
 
@@ -96,19 +108,25 @@ export default function Supporto() {
     const perMe = comunicazioni.filter(
       (c) => c.destinatario === AUTORE_CORRENTE && !c.archiviata,
     );
+    const inScadenza = comunicazioni.filter((c) => {
+      if (!c.scadenza || c.archiviata) return false;
+      const diff = new Date(c.scadenza).getTime() - Date.now();
+      return diff >= 0 && diff <= 3 * 24 * 60 * 60 * 1000;
+    });
     return {
       totali: nonArchiviate.length,
       urgenti: urgenti.length,
       perMe: perMe.length,
       archiviate: comunicazioni.filter((c) => c.archiviata).length,
+      inScadenza: inScadenza.length,
     };
   }, [comunicazioni]);
 
   /* CRUD handlers */
   const handleCrea = useCallback(
-    async (messaggio: string, urgente: boolean, destinatario: Operatore | null) => {
+    async (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null) => {
       try {
-        const nuova = await createComunicazione(AUTORE_CORRENTE, messaggio, urgente, destinatario);
+        const nuova = await createComunicazione(AUTORE_CORRENTE, messaggio, urgente, destinatario, scadenza);
         setComunicazioni((prev) => [nuova, ...prev]);
         setShowScrivi(false);
       } catch (err) {
@@ -119,7 +137,7 @@ export default function Supporto() {
   );
 
   const handleModifica = useCallback(
-    async (id: string, patch: { messaggio?: string; urgente?: boolean }) => {
+    async (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null }) => {
       try {
         const aggiornata = await updateComunicazione(id, patch);
         setComunicazioni((prev) => prev.map((c) => (c.id === aggiornata.id ? aggiornata : c)));
@@ -174,7 +192,7 @@ export default function Supporto() {
           <p className="font-caption text-text-muted mb-1">Dashboard / Comunicazioni</p>
           <h1 className="font-display-lg text-text-primary">Bacheca Comunicazioni</h1>
           <p className="font-body text-text-secondary mt-1">
-            Messaggi interni tra operatori — in ordine cronologico
+            Messaggi interni tra operatori â€” in ordine cronologico
           </p>
         </div>
         <Button onClick={() => setShowScrivi(true)}>
@@ -183,9 +201,10 @@ export default function Supporto() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label="In Bacheca" value={String(stats.totali)} color="#3B82F6" delay={0} />
         <StatCard label="Urgenti" value={String(stats.urgenti)} color="#EF4444" delay={0.06} />
+        <StatCard label="In Scadenza" value={String(stats.inScadenza)} color="#EAB308" delay={0.09} />
         <StatCard label="Per Me" value={String(stats.perMe)} color="#22C55E" delay={0.12} />
         <StatCard label="Archiviate" value={String(stats.archiviate)} color="#525252" delay={0.18} />
       </div>
@@ -284,22 +303,25 @@ function ComunicazioneCard({
 }: {
   com: Comunicazione;
   isMia: boolean;
-  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean }) => void;
+  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null }) => void;
   onArchivia: (id: string) => void;
   onElimina: (id: string) => void;
   onInviaEmail: (com: Comunicazione) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(com.messaggio);
+  const [editScadenza, setEditScadenza] = useState(com.scadenza ? com.scadenza.slice(0, 10) : "");
   
   const colore = COLORE_AUTORI[com.autore] || "#525252";
   const coloreBg = colore + "15";
   const coloreBordo = colore + "30";
 
   const handleSaveEdit = () => {
-    if (editText.trim() && editText !== com.messaggio) {
-      onModifica(com.id, { messaggio: editText.trim() });
-    }
+    const patch: { messaggio?: string; scadenza?: string | null } = {};
+    if (editText.trim() && editText !== com.messaggio) patch.messaggio = editText.trim();
+    const nuovaScadenza = editScadenza || null;
+    if (nuovaScadenza !== com.scadenza) patch.scadenza = nuovaScadenza;
+    if (Object.keys(patch).length > 0) onModifica(com.id, patch);
     setEditing(false);
   };
 
@@ -358,6 +380,23 @@ function ComunicazioneCard({
                 URGENTE
               </span>
             )}
+            {com.scadenza && (() => {
+              const diff = new Date(com.scadenza).getTime() - Date.now();
+              const giorni = Math.ceil(diff / (1000 * 60 * 60 * 24));
+              const isScaduta = diff < 0;
+              const inScadenza = giorni <= 3;
+              return (
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium",
+                  isScaduta ? "bg-status-rosso/15 text-status-rosso" :
+                  inScadenza ? "bg-[#EAB308]/15 text-[#EAB308]" :
+                  "bg-bg-hover text-text-muted",
+                )}>
+                  <Calendar size={10} />
+                  {isScaduta ? "Scaduta" : `Entro ${format(new Date(com.scadenza), "d MMM", { locale: it })}`}
+                </span>
+              );
+            })()}
             <span className="font-caption text-text-muted ml-auto text-xs flex items-center gap-1">
               <Clock size={10} />
               {format(new Date(com.createdAt), "d MMM HH:mm", { locale: it })}
@@ -374,9 +413,24 @@ function ComunicazioneCard({
                 className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-primary resize-none"
                 autoFocus
               />
+              <div className="flex items-center gap-2">
+                <Calendar size={12} className="text-text-muted" />
+                <input
+                  type="date"
+                  value={editScadenza}
+                  onChange={(e) => setEditScadenza(e.target.value)}
+                  className="flex-1 h-9 bg-bg-base border border-border-default rounded-md px-3 text-sm text-text-primary outline-none focus:border-accent-primary"
+                />
+                {editScadenza && (
+                  <button onClick={() => setEditScadenza("")} title="Rimuovi scadenza"
+                    className="h-9 px-2 text-xs text-text-muted hover:text-status-rosso transition-colors">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleSaveEdit}>Salva</Button>
-                <Button size="sm" variant="outline" onClick={() => { setEditing(false); setEditText(com.messaggio); }}>
+                <Button size="sm" variant="outline" onClick={() => { setEditing(false); setEditText(com.messaggio); setEditScadenza(com.scadenza ? com.scadenza.slice(0, 10) : ""); }}>
                   Annulla
                 </Button>
               </div>
@@ -437,11 +491,12 @@ function ScriviModal({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onInvia: (messaggio: string, urgente: boolean, destinatario: Operatore | null) => void;
+  onInvia: (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null) => void;
 }) {
   const [messaggio, setMessaggio] = useState("");
   const [urgente, setUrgente] = useState(false);
   const [destinatario, setDestinatario] = useState<string>("");
+  const [scadenza, setScadenza] = useState("");
 
   if (!isOpen) return null;
 
@@ -452,10 +507,12 @@ function ScriviModal({
       messaggio.trim(),
       urgente,
       (destinatario || null) as Operatore | null,
+      scadenza || null,
     );
     setMessaggio("");
     setUrgente(false);
     setDestinatario("");
+    setScadenza("");
   };
 
   const handleClose = () => {
@@ -463,6 +520,7 @@ function ScriviModal({
     setMessaggio("");
     setUrgente(false);
     setDestinatario("");
+    setScadenza("");
   };
 
   return (
@@ -522,6 +580,18 @@ function ScriviModal({
               Segna come urgente
             </span>
           </label>
+          <div>
+            <label className="block font-body-small text-text-secondary mb-1.5 flex items-center gap-1">
+              <Calendar size={14} /> Scadenza (opzionale)
+            </label>
+            <input
+              type="date"
+              value={scadenza}
+              onChange={(e) => setScadenza(e.target.value)}
+              min={new Date().toISOString().split("T")[0]}
+              className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 text-sm text-text-primary outline-none focus:border-accent-primary"
+            />
+          </div>
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-border-subtle">
             <Button type="button" variant="outline" onClick={handleClose}>Annulla</Button>
             <Button type="submit" className="flex items-center gap-2">
@@ -547,4 +617,4 @@ function StatCard({ label, value, color, delay }: { label: string; value: string
       <p className="font-data-md" style={{ color }}>{value}</p>
     </motion.div>
   );
-}
+}

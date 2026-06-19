@@ -323,6 +323,7 @@ export type Database = {
           messaggio: string;
           urgente: boolean;
           archiviata: boolean;
+          scadenza: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -333,6 +334,7 @@ export type Database = {
           messaggio: string;
           urgente?: boolean;
           archiviata?: boolean;
+          scadenza?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -343,6 +345,7 @@ export type Database = {
           messaggio?: string;
           urgente?: boolean;
           archiviata?: boolean;
+          scadenza?: string | null;
           created_at?: string;
           updated_at?: string;
         };
