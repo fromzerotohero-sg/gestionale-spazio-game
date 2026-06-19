@@ -70,7 +70,11 @@ export default function Layout({ children }: LayoutProps) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [notificheAperte]);
 
-  const utente = useMemo(() => getUtenteCorrente(), []);
+  /* Re-read operatore da localStorage ad ogni cambio pagina */
+  const [utente, setUtente] = useState(getUtenteCorrente);
+  useEffect(() => {
+    setUtente(getUtenteCorrente());
+  }, [location.pathname]);
 
   const notifiche = useMemo(() => {
     const result: Notifica[] = [];
