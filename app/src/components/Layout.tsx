@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Bell, X, AlertTriangle, Clock, User, Calendar } from 'lucide-react';
@@ -10,7 +10,7 @@ import {
   supabaseConfigError,
   supabaseProjectHost,
 } from '@/lib/supabase';
-import { fetchComunicazioni, type Comunicazione, type Operatore } from '@/lib/comunicazioni-api';
+import { fetchComunicazioni, updateComunicazione, type Comunicazione, type Operatore } from '@/lib/comunicazioni-api';
 
 const UTENTE_KEY = 'comunicazioni_utente';
 const OPERATORI: Operatore[] = ['Giangrossi', 'Irene', 'Matteo', 'Paolo'];
@@ -130,6 +130,25 @@ export default function Layout({ children }: LayoutProps) {
     return result;
   }, [comunicazioni, utente]);
 
+  /* Archivia una notifica (archivia la comunicazione su Supabase) */
+  const handleArchiviaNotifica = useCallback(async (id: string) => {
+    try {
+      await updateComunicazione(id, { archiviata: true });
+      setComunicazioni((prev) => prev.map((c) => c.id === id ? { ...c, archiviata: true } : c));
+    } catch { /* ignore */ }
+  }, []);
+
+  /* Archivia tutte */
+  const handleArchiviaTutte = useCallback(async () => {
+    const ids = [...new Set(notifiche.map((n) => n.comunicazioneId))];
+    for (const id of ids) {
+      try {
+        await updateComunicazione(id, { archiviata: true });
+        setComunicazioni((prev) => prev.map((c) => c.id === id ? { ...c, archiviata: true } : c));
+      } catch { /* ignore */ }
+    }
+  }, [notifiche]);
+
   return (
     <div className="flex min-h-[100dvh] bg-bg-base">
       <Navbar collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
@@ -188,10 +207,22 @@ export default function Layout({ children }: LayoutProps) {
                       </div>
                     ) : (
                       notifiche.map((n) => (
-                        <NotificaRow key={n.id} notifica={n} />
+                        <NotificaRow
+                          key={n.id}
+                          notifica={n}
+                          onArchivia={handleArchiviaNotifica}
+                        />
                       ))
                     )}
                   </div>
+                  {notifiche.length > 0 && (
+                    <button
+                      onClick={handleArchiviaTutte}
+                      className="w-full px-4 py-2.5 text-xs font-medium text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors border-t border-border-subtle text-center"
+                    >
+                      Archivia tutte
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -228,7 +259,7 @@ export default function Layout({ children }: LayoutProps) {
 
 /* ------------ RIGA NOTIFICA ------------ */
 
-function NotificaRow({ notifica }: { notifica: Notifica }) {
+function NotificaRow({ notifica, onArchivia }: { notifica: Notifica; onArchivia: (id: string) => void }) {
   const icona = {
     per_me: <User size={14} />,
     urgente: <AlertTriangle size={14} />,
@@ -251,7 +282,7 @@ function NotificaRow({ notifica }: { notifica: Notifica }) {
   }[notifica.tipo];
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 hover:bg-bg-hover transition-colors border-b border-border-subtle last:border-b-0">
+    <div className="flex items-start gap-3 px-4 py-3 hover:bg-bg-hover transition-colors border-b border-border-subtle last:border-b-0 group">
       <div
         className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
         style={{ backgroundColor: colore + '15', color: colore }}
@@ -268,6 +299,13 @@ function NotificaRow({ notifica }: { notifica: Notifica }) {
           {notifica.messaggio}
         </p>
       </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onArchivia(notifica.comunicazioneId); }}
+        title="Archivia"
+        className="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all flex-shrink-0 mt-0.5"
+      >
+        <X size={12} />
+      </button>
     </div>
   );
 }
