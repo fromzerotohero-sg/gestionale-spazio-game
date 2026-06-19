@@ -315,6 +315,39 @@ export type Database = {
         Update: Record<string, unknown>;
         Relationships: [];
       };
+      comunicazioni: {
+        Row: {
+          id: string;
+          autore: "Giangrossi" | "Irene" | "Matteo" | "Paolo";
+          destinatario: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          messaggio: string;
+          urgente: boolean;
+          archiviata: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          autore: "Giangrossi" | "Irene" | "Matteo" | "Paolo";
+          destinatario?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          messaggio: string;
+          urgente?: boolean;
+          archiviata?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          autore?: "Giangrossi" | "Irene" | "Matteo" | "Paolo";
+          destinatario?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          messaggio?: string;
+          urgente?: boolean;
+          archiviata?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
