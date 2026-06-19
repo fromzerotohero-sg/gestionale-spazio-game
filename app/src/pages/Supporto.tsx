@@ -2,12 +2,25 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Send, X, Mail, Archive, Trash2, AlertTriangle,
-  MessageSquare, User, Clock, Calendar,
+  MessageSquare, User, Clock, Calendar, CalendarIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select as SelectRoot,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   fetchComunicazioni, createComunicazione, updateComunicazione, deleteComunicazione,
   type Comunicazione, type Operatore,
@@ -20,8 +33,7 @@ type FiltroVista = "tutte" | "generali" | "mie" | "archiviate";
 /* ------------ CONSTANTS ------------ */
 
 const OPERATORI: Operatore[] = ["Giangrossi", "Irene", "Matteo", "Paolo"];
-
-const AUTORE_CORRENTE: Operatore = "Giangrossi";
+const UTENTE_KEY = "comunicazioni_utente";
 
 const COLORE_AUTORI: Record<Operatore, string> = {
   Giangrossi: "#3B82F6",
@@ -47,8 +59,20 @@ export default function Supporto() {
   const [filtro, setFiltro] = useState<FiltroVista>("tutte");
   const [mostraArchiviate, setMostraArchiviate] = useState(false);
   const [showScrivi, setShowScrivi] = useState(false);
+  const [utenteCorrente, setUtenteCorrente] = useState<Operatore>(() => {
+    try {
+      const saved = localStorage.getItem(UTENTE_KEY);
+      if (saved && OPERATORI.includes(saved as Operatore)) return saved as Operatore;
+    } catch { /* ignore */ }
+    return "Giangrossi";
+  });
 
-  /* Carica dati */
+  const cambiaUtente = useCallback((nuovo: Operatore) => {
+    setUtenteCorrente(nuovo);
+    try { localStorage.setItem(UTENTE_KEY, nuovo); } catch { /* ignore */ }
+  }, []);
+
+  const isMia = useCallback((c: Comunicazione) => c.autore === utenteCorrente, [utenteCorrente]);
   const caricaDati = useCallback(async () => {
     try {
       setLoading(true);
@@ -78,7 +102,7 @@ export default function Supporto() {
         break;
       case "mie":
         result = result.filter(
-          (c) => c.destinatario === AUTORE_CORRENTE || c.autore === AUTORE_CORRENTE,
+          (c) => c.destinatario === utenteCorrente || c.autore === utenteCorrente,
         );
         break;
       case "archiviate":
@@ -106,7 +130,7 @@ export default function Supporto() {
     const nonArchiviate = comunicazioni.filter((c) => !c.archiviata);
     const urgenti = comunicazioni.filter((c) => c.urgente && !c.archiviata);
     const perMe = comunicazioni.filter(
-      (c) => c.destinatario === AUTORE_CORRENTE && !c.archiviata,
+      (c) => c.destinatario === utenteCorrente && !c.archiviata,
     );
     const inScadenza = comunicazioni.filter((c) => {
       if (!c.scadenza || c.archiviata) return false;
@@ -126,7 +150,7 @@ export default function Supporto() {
   const handleCrea = useCallback(
     async (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null) => {
       try {
-        const nuova = await createComunicazione(AUTORE_CORRENTE, messaggio, urgente, destinatario, scadenza);
+        const nuova = await createComunicazione(utenteCorrente, messaggio, urgente, destinatario, scadenza);
         setComunicazioni((prev) => [nuova, ...prev]);
         setShowScrivi(false);
       } catch (err) {
@@ -195,9 +219,26 @@ export default function Supporto() {
             Messaggi interni tra operatori — in ordine cronologico
           </p>
         </div>
-        <Button onClick={() => setShowScrivi(true)}>
-          <Plus size={16} /> Nuova Comunicazione
-        </Button>
+        <div className="flex items-center gap-2">
+          <SelectRoot value={utenteCorrente} onValueChange={(v) => cambiaUtente(v as Operatore)}>
+            <SelectTrigger className="w-[150px] h-10 bg-bg-elevated border-border-default">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {OPERATORI.map((o) => (
+                <SelectItem key={o} value={o}>
+                  <span className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORE_AUTORI[o] }} />
+                    {o}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </SelectRoot>
+          <Button onClick={() => setShowScrivi(true)}>
+            <Plus size={16} /> Nuova Comunicazione
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -270,7 +311,7 @@ export default function Supporto() {
               <ComunicazioneCard
                 key={com.id}
                 com={com}
-                isMia={com.autore === AUTORE_CORRENTE}
+                isMia={isMia(com)}
                 onModifica={handleModifica}
                 onArchivia={handleArchivia}
                 onElimina={handleElimina}
@@ -286,6 +327,7 @@ export default function Supporto() {
         isOpen={showScrivi}
         onClose={() => setShowScrivi(false)}
         onInvia={handleCrea}
+        utenteCorrente={utenteCorrente}
       />
     </motion.div>
   );
@@ -310,7 +352,7 @@ function ComunicazioneCard({
 }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(com.messaggio);
-  const [editScadenza, setEditScadenza] = useState(com.scadenza ? com.scadenza.slice(0, 10) : "");
+  const [editScadenza, setEditScadenza] = useState<string | null>(com.scadenza ? com.scadenza.slice(0, 10) : null);
   
   const colore = COLORE_AUTORI[com.autore] || "#525252";
   const coloreBg = colore + "15";
@@ -413,24 +455,14 @@ function ComunicazioneCard({
                 className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-primary resize-none"
                 autoFocus
               />
-              <div className="flex items-center gap-2">
-                <Calendar size={12} className="text-text-muted" />
-                <input
-                  type="date"
-                  value={editScadenza}
-                  onChange={(e) => setEditScadenza(e.target.value)}
-                  className="flex-1 h-9 bg-bg-base border border-border-default rounded-md px-3 text-sm text-text-primary outline-none focus:border-accent-primary"
-                />
-                {editScadenza && (
-                  <button onClick={() => setEditScadenza("")} title="Rimuovi scadenza"
-                    className="h-9 px-2 text-xs text-text-muted hover:text-status-rosso transition-colors">
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
+              <DatePicker
+                value={editScadenza}
+                onChange={setEditScadenza}
+                label="Scadenza (opzionale)"
+              />
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleSaveEdit}>Salva</Button>
-                <Button size="sm" variant="outline" onClick={() => { setEditing(false); setEditText(com.messaggio); setEditScadenza(com.scadenza ? com.scadenza.slice(0, 10) : ""); }}>
+                <Button size="sm" variant="outline" onClick={() => { setEditing(false); setEditText(com.messaggio); setEditScadenza(com.scadenza ? com.scadenza.slice(0, 10) : null); }}>
                   Annulla
                 </Button>
               </div>
@@ -488,15 +520,17 @@ function ScriviModal({
   isOpen,
   onClose,
   onInvia,
+  utenteCorrente,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onInvia: (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null) => void;
+  utenteCorrente: Operatore;
 }) {
   const [messaggio, setMessaggio] = useState("");
   const [urgente, setUrgente] = useState(false);
   const [destinatario, setDestinatario] = useState<string>("");
-  const [scadenza, setScadenza] = useState("");
+  const [scadenza, setScadenza] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -512,7 +546,7 @@ function ScriviModal({
     setMessaggio("");
     setUrgente(false);
     setDestinatario("");
-    setScadenza("");
+    setScadenza(null);
   };
 
   const handleClose = () => {
@@ -520,7 +554,7 @@ function ScriviModal({
     setMessaggio("");
     setUrgente(false);
     setDestinatario("");
-    setScadenza("");
+    setScadenza(null);
   };
 
   return (
@@ -550,7 +584,7 @@ function ScriviModal({
               className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 text-sm text-text-primary outline-none focus:border-accent-primary appearance-none"
             >
               <option value="">Tutti (comunicazione generale)</option>
-              {OPERATORI.filter((o) => o !== AUTORE_CORRENTE).map((o) => (
+              {OPERATORI.filter((o) => o !== utenteCorrente).map((o) => (
                 <option key={o} value={o}>{o}</option>
               ))}
             </select>
@@ -584,13 +618,7 @@ function ScriviModal({
             <label className="block font-body-small text-text-secondary mb-1.5 flex items-center gap-1">
               <Calendar size={14} /> Scadenza (opzionale)
             </label>
-            <input
-              type="date"
-              value={scadenza}
-              onChange={(e) => setScadenza(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
-              className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 text-sm text-text-primary outline-none focus:border-accent-primary"
-            />
+            <DatePicker value={scadenza} onChange={setScadenza} label="Scegli scadenza" />
           </div>
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-border-subtle">
             <Button type="button" variant="outline" onClick={handleClose}>Annulla</Button>
@@ -601,6 +629,55 @@ function ScriviModal({
         </form>
       </motion.div>
     </div>
+  );
+}
+
+/* ------------ DATE PICKER ------------ */
+
+function DatePicker({
+  value,
+  onChange,
+  label,
+  disabled,
+}: {
+  value: string | null;
+  onChange: (val: string | null) => void;
+  label?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const date = value ? new Date(value + "T00:00:00") : undefined;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          className={cn(
+            "justify-start font-normal bg-bg-elevated border-border-default w-full h-10",
+            !value && "text-text-muted",
+          )}
+        >
+          <CalendarIcon className="mr-2 size-4 opacity-70" />
+          {value
+            ? format(date!, "d MMM yyyy", { locale: it })
+            : label || "Scegli data"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 bg-bg-surface border-border-default" align="start">
+        <CalendarComponent
+          mode="single"
+          selected={date}
+          onSelect={(d) => {
+            onChange(d ? format(d, "yyyy-MM-dd") : null);
+            if (d) setOpen(false);
+          }}
+          locale={it}
+          fromDate={new Date()}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
