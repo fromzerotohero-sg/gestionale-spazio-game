@@ -38,7 +38,7 @@ export async function fetchComunicazioni(): Promise<Comunicazione[]> {
   const { data, error } = await (getSupabase()
     .from("comunicazioni" as any)
     .select("*")
-    .order("created_at", { ascending: false }) as any);
+    .order("updated_at", { ascending: false }) as any);
 
   if (error) throw error;
   return (data ?? []).map(rowToComunicazione);

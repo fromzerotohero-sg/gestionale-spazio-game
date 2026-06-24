@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Send, X, Mail, Archive, Trash2, AlertTriangle,
-  MessageSquare, User, Clock, Calendar, CalendarIcon,
+  MessageSquare, User, Clock, Calendar, CalendarIcon, Reply,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -60,6 +60,7 @@ export default function Supporto() {
   const [mostraArchiviate, setMostraArchiviate] = useState(false);
   const [showScrivi, setShowScrivi] = useState(false);
   const [editingCom, setEditingCom] = useState<Comunicazione | null>(null);
+  const [replyTo, setReplyTo] = useState<Operatore | null>(null);
   const [utenteCorrente, setUtenteCorrente] = useState<Operatore>(() => {
     try {
       const saved = localStorage.getItem(UTENTE_KEY);
@@ -120,8 +121,8 @@ export default function Supporto() {
         if (Math.abs(diff) < 60000) return 0; // same minute -> creation order
         return diff;
       }
-      // No deadlines: sort by creation date DESC
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      // No deadlines: sort by last update DESC
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
     return result;
   }, [comunicazioni, filtro, mostraArchiviate]);
@@ -182,6 +183,7 @@ export default function Supporto() {
       } else {
         await handleCrea(messaggio, urgente, destinatario, scadenza);
       }
+      setReplyTo(null);
     },
     [editingCom, handleModifica, handleCrea],
   );
@@ -249,7 +251,7 @@ export default function Supporto() {
               ))}
             </SelectContent>
           </SelectRoot>
-          <Button onClick={() => { setEditingCom(null); setShowScrivi(true); }}>
+          <Button onClick={() => { setEditingCom(null); setReplyTo(null); setShowScrivi(true); }}>
             <Plus size={16} /> Nuova Comunicazione
           </Button>
         </div>
@@ -331,6 +333,7 @@ export default function Supporto() {
                 onElimina={handleElimina}
                 onInviaEmail={handleInviaEmail}
                 onEdit={setEditingCom}
+                onReply={(com) => { setReplyTo(com.autore); setShowScrivi(true); }}
               />
             ))}
           </AnimatePresence>
@@ -340,10 +343,11 @@ export default function Supporto() {
       {/* Modal scrivi */}
       <ScriviModal
         isOpen={showScrivi || editingCom !== null}
-        onClose={() => { setShowScrivi(false); setEditingCom(null); }}
+        onClose={() => { setShowScrivi(false); setEditingCom(null); setReplyTo(null); }}
         onInvia={handleModalSubmit}
         utenteCorrente={utenteCorrente}
         editing={editingCom}
+        replyTo={replyTo}
       />
     </motion.div>
   );
@@ -359,6 +363,7 @@ function ComunicazioneCard({
   onElimina,
   onInviaEmail,
   onEdit,
+  onReply,
 }: {
   com: Comunicazione;
   isMia: boolean;
@@ -367,6 +372,7 @@ function ComunicazioneCard({
   onElimina: (id: string) => void;
   onInviaEmail: (com: Comunicazione) => void;
   onEdit: (com: Comunicazione) => void;
+  onReply: (com: Comunicazione) => void;
 }) {
   const colore = COLORE_AUTORI[com.autore] || "#525252";
   const toggleUrgente = () => {
@@ -446,7 +452,7 @@ function ComunicazioneCard({
             })()}
             <span className="font-caption text-text-muted ml-auto text-xs flex items-center gap-1">
               <Clock size={10} />
-              {format(new Date(com.createdAt), "d MMM HH:mm", { locale: it })}
+              {format(new Date(com.updatedAt), "d MMM HH:mm", { locale: it })}
             </span>
           </div>
 
@@ -482,6 +488,10 @@ function ComunicazioneCard({
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
             <Mail size={14} />
           </button>
+          <button onClick={() => onReply(com)} title="Rispondi"
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-accent-primary/20 text-text-muted hover:text-accent-primary transition-colors">
+            <Reply size={14} />
+          </button>
           {isMia && (
             <button onClick={() => onElimina(com.id)} title="Elimina"
               className="w-7 h-7 flex items-center justify-center rounded hover:bg-status-rosso/20 text-text-muted hover:text-status-rosso transition-colors">
@@ -502,19 +512,20 @@ function ScriviModal({
   onInvia,
   utenteCorrente,
   editing,
+  replyTo,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onInvia: (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null) => void;
   utenteCorrente: Operatore;
   editing?: Comunicazione | null;
-  onModifica?: (id: string, patch: { messaggio: string; urgente: boolean; destinatario: Operatore | null; scadenza: string | null }) => void;
+  replyTo?: Operatore | null;
 }) {
   const isEdit = !!editing;
 
   const [messaggio, setMessaggio] = useState(isEdit ? editing.messaggio : "");
   const [urgente, setUrgente] = useState(isEdit ? editing.urgente : false);
-  const [destinatario, setDestinatario] = useState<string>(isEdit ? (editing.destinatario ?? "") : "");
+  const [destinatario, setDestinatario] = useState<string>(isEdit ? (editing.destinatario ?? "") : (replyTo ?? ""));
   const [scadenza, setScadenza] = useState<string | null>(isEdit && editing.scadenza ? editing.scadenza.slice(0, 10) : null);
 
   // Reset form when opening/closing
@@ -525,8 +536,10 @@ function ScriviModal({
       setUrgente(editing.urgente);
       setDestinatario(editing.destinatario ?? "");
       setScadenza(editing.scadenza ? editing.scadenza.slice(0, 10) : null);
+    } else {
+      setDestinatario(replyTo ?? "");
     }
-  }, [isOpen, editing]);
+  }, [isOpen, editing, replyTo]);
 
   if (!isOpen) return null;
 
