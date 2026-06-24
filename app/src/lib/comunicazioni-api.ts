@@ -80,6 +80,7 @@ export async function updateComunicazione(
     urgente?: boolean;
     archiviata?: boolean;
     scadenza?: string | null;
+    destinatario?: Operatore | null;
   },
 ): Promise<Comunicazione> {
   if (!isSupabaseConfigured) {
@@ -91,6 +92,7 @@ export async function updateComunicazione(
   if (patch.urgente !== undefined) updateRow.urgente = patch.urgente;
   if (patch.archiviata !== undefined) updateRow.archiviata = patch.archiviata;
   if (patch.scadenza !== undefined) updateRow.scadenza = patch.scadenza;
+  if (patch.destinatario !== undefined) updateRow.destinatario = patch.destinatario;
 
   const { data, error } = await (getSupabase()
     .from("comunicazioni" as any)
