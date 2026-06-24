@@ -78,7 +78,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   // 1. Fetch all inventory items for stats
   const { data: items, error: itemsError } = await (supabase
     .from("inventory_items")
-    .select("categoria,prezzo_unitario,quantita,nome") as any);
+    .select("*") as any);
 
   if (itemsError) throw itemsError;
 
@@ -118,7 +118,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   // 2. Fetch recent activity
   const { data: activityData, error: actError } = await (supabase
     .from("inventory_activity")
-    .select("id,action,operatore,summary,created_at")
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(10) as any);
 
@@ -154,7 +154,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   // Urgent comunicazioni
   const { data: urgenti } = await (supabase
     .from("comunicazioni")
-    .select("id,messaggio,created_at")
+    .select("*")
     .eq("urgente", true)
     .eq("archiviata", false)
     .order("created_at", { ascending: false })
