@@ -256,8 +256,8 @@ export default function Supporto() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <p className="font-caption text-text-muted mb-1">Dashboard / Comunicazioni</p>
-          <h1 className="font-display-lg text-text-primary">Bacheca Comunicazioni</h1>
-          <p className="font-body text-text-secondary mt-1">
+          <h1 className="font-display-lg max-sm:text-2xl text-text-primary">Bacheca Comunicazioni</h1>
+          <p className="font-body text-text-secondary mt-1 max-sm:hidden">
             Messaggi interni tra operatori — in ordine cronologico
           </p>
         </div>
@@ -284,7 +284,7 @@ export default function Supporto() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
         <StatCard label="In Bacheca" value={String(stats.totali)} color="#3B82F6" delay={0} />
         <StatCard label="Urgenti" value={String(stats.urgenti)} color="#EF4444" delay={0.06} />
         <StatCard label="In Scadenza" value={String(stats.inScadenza)} color="#EAB308" delay={0.09} />
@@ -294,7 +294,7 @@ export default function Supporto() {
 
       {/* Filtri */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="flex items-center gap-1 bg-bg-elevated border border-border-subtle rounded-lg p-0.5">
+        <div className="flex items-center gap-1 bg-bg-elevated border border-border-subtle rounded-lg p-0.5 flex-wrap">
           {([
             { key: "tutte" as FiltroVista, label: "Tutte" },
             { key: "generali" as FiltroVista, label: "Generali" },
@@ -305,7 +305,7 @@ export default function Supporto() {
               key={t.key}
               onClick={() => setFiltro(t.key)}
               className={cn(
-                "px-3 h-8 rounded-md text-sm font-medium transition-colors",
+                "px-2.5 h-7 rounded-md text-[13px] font-medium transition-colors",
                 filtro === t.key
                   ? "bg-accent-primary/20 text-accent-primary"
                   : "text-text-muted hover:text-text-secondary",
@@ -315,7 +315,7 @@ export default function Supporto() {
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer ml-2">
+        <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer max-sm:ml-0">
           <input
             type="checkbox"
             checked={mostraArchiviate}
@@ -722,13 +722,13 @@ function ScriviModal({
         className="bg-bg-surface border border-border-default rounded-2xl w-full max-w-[520px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-border-subtle">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-subtle">
           <h2 className="font-heading-2 text-text-primary">{isEdit ? "Modifica Comunicazione" : "Nuova Comunicazione"}</h2>
           <button onClick={handleClose} className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-bg-hover transition-colors text-text-muted hover:text-text-primary">
             <X size={18} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
           <div>
             <label className="block font-body-small text-text-secondary mb-2">Destinatari</label>
             <div className="flex flex-wrap gap-1.5 mb-2">
