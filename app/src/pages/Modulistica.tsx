@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Send, X, Download, Trash2, FileText, Monitor, User, Calendar, Hash, FileSpreadsheet,
+  Printer, FileDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -10,6 +11,7 @@ import {
   fetchModuli, createModulo, updateModulo, deleteModulo,
   type Modulo, type ModuloTipo, type ArticoloOrdine,
   TEMPLATES, type TemplateInfo,
+  exportModuloToExcel, apriStampaModulo,
 } from "@/lib/moduli-api";
 
 /* ------------ CONSTANTS ------------ */
@@ -283,6 +285,14 @@ function ModuloRow({ modulo, onEdit, onDelete }: {
         </div>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={() => apriStampaModulo(modulo)} title="Stampa"
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
+          <Printer size={14} />
+        </button>
+        <button onClick={() => exportModuloToExcel(modulo)} title="Esporta Excel"
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
+          <FileDown size={14} />
+        </button>
         <button onClick={onEdit} title="Modifica"
           className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -670,6 +680,16 @@ function ModuloFormModal({
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-border-subtle">
             <Button type="button" variant="outline" onClick={onClose}>Annulla</Button>
+            {modulo && (
+              <>
+                <Button type="button" size="sm" variant="ghost" onClick={() => apriStampaModulo(modulo)} title="Stampa">
+                  <Printer size={14} />
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => exportModuloToExcel(modulo)} title="Esporta Excel">
+                  <FileDown size={14} />
+                </Button>
+              </>
+            )}
             <Button type="submit" className="flex items-center gap-2">
               <Send size={14} /> Salva
             </Button>
