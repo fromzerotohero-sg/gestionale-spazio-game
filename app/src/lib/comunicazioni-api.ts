@@ -6,7 +6,7 @@ export type Operatore = "Giangrossi" | "Irene" | "Matteo" | "Paolo";
 export interface Comunicazione {
   id: string;
   autore: Operatore;
-  destinatario: Operatore | null;
+  destinatario: Operatore[] | null;
   messaggio: string;
   urgente: boolean;
   archiviata: boolean;
@@ -22,7 +22,7 @@ function rowToComunicazione(row: Row): Comunicazione {
   return {
     id: row.id,
     autore: row.autore as Operatore,
-    destinatario: row.destinatario as Operatore | null,
+    destinatario: row.destinatario as Operatore[] | null,
     messaggio: row.messaggio,
     urgente: row.urgente,
     archiviata: row.archiviata,
@@ -50,7 +50,7 @@ export async function createComunicazione(
   autore: Operatore,
   messaggio: string,
   urgente: boolean,
-  destinatario: Operatore | null,
+  destinatario: Operatore[] | null,
   scadenza: string | null,
   threadId: string | null,
 ): Promise<Comunicazione> {
@@ -97,7 +97,7 @@ export async function updateComunicazione(
     urgente?: boolean;
     archiviata?: boolean;
     scadenza?: string | null;
-    destinatario?: Operatore | null;
+    destinatario?: Operatore[] | null;
   },
 ): Promise<Comunicazione> {
   if (!isSupabaseConfigured) {

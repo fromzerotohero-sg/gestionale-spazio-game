@@ -373,7 +373,7 @@ export type Database = {
         Row: {
           id: string;
           autore: "Giangrossi" | "Irene" | "Matteo" | "Paolo";
-          destinatario: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          destinatario: string[] | null;
           messaggio: string;
           urgente: boolean;
           archiviata: boolean;
@@ -385,7 +385,7 @@ export type Database = {
         Insert: {
           id?: string;
           autore: "Giangrossi" | "Irene" | "Matteo" | "Paolo";
-          destinatario?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          destinatario?: string[] | null;
           messaggio: string;
           urgente?: boolean;
           archiviata?: boolean;
@@ -397,7 +397,7 @@ export type Database = {
         Update: {
           id?: string;
           autore?: "Giangrossi" | "Irene" | "Matteo" | "Paolo";
-          destinatario?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+          destinatario?: string[] | null;
           messaggio?: string;
           urgente?: boolean;
           archiviata?: boolean;

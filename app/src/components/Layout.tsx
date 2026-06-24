@@ -85,7 +85,7 @@ export default function Layout({ children }: LayoutProps) {
       if (c.archiviata) continue;
 
       // Comunicazioni indirizzate a me non archiviate
-      if (c.destinatario === utente) {
+      if (c.destinatario?.includes(utente)) {
         result.push({
           id: c.id + '_per_me',
           tipo: 'per_me',

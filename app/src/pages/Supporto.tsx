@@ -60,7 +60,7 @@ export default function Supporto() {
   const [mostraArchiviate, setMostraArchiviate] = useState(false);
   const [showScrivi, setShowScrivi] = useState(false);
   const [editingCom, setEditingCom] = useState<Comunicazione | null>(null);
-  const [replyTo, setReplyTo] = useState<Operatore | null>(null);
+  const [replyTo, setReplyTo] = useState<Operatore[] | null>(null);
   const [replyThreadId, setReplyThreadId] = useState<string | null>(null);
   const [utenteCorrente, setUtenteCorrente] = useState<Operatore>(() => {
     try {
@@ -105,7 +105,7 @@ export default function Supporto() {
         break;
       case "mie":
         result = result.filter(
-          (c) => c.destinatario === utenteCorrente || c.autore === utenteCorrente,
+          (c) => c.destinatario?.includes(utenteCorrente) || c.autore === utenteCorrente,
         );
         break;
       case "archiviate":
@@ -157,7 +157,7 @@ export default function Supporto() {
     const nonArchiviate = comunicazioni.filter((c) => !c.archiviata);
     const urgenti = comunicazioni.filter((c) => c.urgente && !c.archiviata);
     const perMe = comunicazioni.filter(
-      (c) => c.destinatario === utenteCorrente && !c.archiviata,
+      (c) => c.destinatario?.includes(utenteCorrente) && !c.archiviata,
     );
     const inScadenza = comunicazioni.filter((c) => {
       if (!c.scadenza || c.archiviata) return false;
@@ -175,7 +175,7 @@ export default function Supporto() {
 
   /* CRUD handlers */
   const handleCrea = useCallback(
-    async (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null, threadId: string | null) => {
+    async (messaggio: string, urgente: boolean, destinatario: Operatore[] | null, scadenza: string | null, threadId: string | null) => {
       try {
         const nuova = await createComunicazione(utenteCorrente, messaggio, urgente, destinatario, scadenza, threadId);
         setComunicazioni((prev) => [nuova, ...prev]);
@@ -188,7 +188,7 @@ export default function Supporto() {
   );
 
   const handleModifica = useCallback(
-    async (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore | null }) => {
+    async (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore[] | null }) => {
       try {
         const aggiornata = await updateComunicazione(id, patch);
         setComunicazioni((prev) => prev.map((c) => (c.id === aggiornata.id ? aggiornata : c)));
@@ -201,7 +201,7 @@ export default function Supporto() {
 
   /* Unico handler crea/modifica dalla modale */
   const handleModalSubmit = useCallback(
-    async (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null) => {
+    async (messaggio: string, urgente: boolean, destinatario: Operatore[] | null, scadenza: string | null) => {
       if (editingCom) {
         await handleModifica(editingCom.id, { messaggio, urgente, destinatario, scadenza });
         setEditingCom(null);
@@ -234,11 +234,11 @@ export default function Supporto() {
   }, []);
 
   const handleInviaEmail = useCallback((com: Comunicazione) => {
-    const destinatario = com.destinatario ? " (a " + com.destinatario + ")" : "";
-    const oggetto = encodeURIComponent("[Comunicazione] " + (com.urgente ? "URGENTE " : "") + destinatario);
+    const destLabel = com.destinatario?.length ? " (a " + com.destinatario.join(", ") + ")" : "";
+    const oggetto = encodeURIComponent("[Comunicazione] " + (com.urgente ? "URGENTE " : "") + destLabel);
     const corpo = encodeURIComponent(
       "Da: " + com.autore +
-      destinatario +
+      destLabel +
       "\n\n" + com.messaggio +
       "\n\n---\nBacheca Comunicazioni - Spazio Game",
     );
@@ -359,7 +359,7 @@ export default function Supporto() {
                 onElimina={handleElimina}
                 onInviaEmail={handleInviaEmail}
                 onEdit={setEditingCom}
-                onReply={(com) => { setReplyTo(com.autore); setReplyThreadId(com.threadId || com.id); setShowScrivi(true); }}
+                onReply={(com) => { setReplyTo([com.autore]); setReplyThreadId(com.threadId || com.id); setShowScrivi(true); }}
               />
             ))}
           </AnimatePresence>
@@ -393,7 +393,7 @@ function ThreadCard({
 }: {
   msgs: Comunicazione[];
   isMia: (c: Comunicazione) => boolean;
-  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore | null }) => void;
+  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore[] | null }) => void;
   onArchivia: (id: string) => void;
   onElimina: (id: string) => void;
   onInviaEmail: (com: Comunicazione) => void;
@@ -413,7 +413,7 @@ function ThreadCard({
         "rounded-xl border overflow-hidden transition-all duration-200",
         root.urgente
           ? "border-status-rosso/40 bg-status-rosso/[0.04]"
-          : root.destinatario
+          : root.destinatario?.length
             ? "border-accent-primary/30 bg-accent-primary/[0.03]"
             : "border-border-subtle bg-bg-elevated",
         root.archiviata && "opacity-50",
@@ -466,7 +466,7 @@ function ChatBubble({
   isFirst: boolean;
   isLast: boolean;
   rootAutore: string;
-  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore | null }) => void;
+  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore[] | null }) => void;
   onArchivia: (id: string) => void;
   onElimina: (id: string) => void;
   onInviaEmail: (com: Comunicazione) => void;
@@ -514,12 +514,17 @@ function ChatBubble({
                 {msg.autore}
               </span>
             ) : null}
-            {isFirst && msg.destinatario && (
-              <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium"
-                style={{ backgroundColor: COLORE_AUTORI[msg.destinatario] + "15", color: COLORE_AUTORI[msg.destinatario] }}>
-                <User size={8} />
-                {msg.destinatario}
-              </span>
+            {isFirst && msg.destinatario && msg.destinatario.length > 0 && (
+              <>
+                {msg.destinatario.map((dest) => (
+                  <span key={dest}
+                    className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium"
+                    style={{ backgroundColor: COLORE_AUTORI[dest] + "15", color: COLORE_AUTORI[dest] }}>
+                    <User size={8} />
+                    {dest}
+                  </span>
+                ))}
+              </>
             )}
             {isFirst && msg.urgente && (
               <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium bg-status-rosso/15 text-status-rosso">
@@ -550,6 +555,11 @@ function ChatBubble({
           </div>
 
           {/* Message */}
+          {!isFirst && (
+            <p className="text-[9px] text-text-muted mb-0.5 italic">
+              in risposta a <span style={{ color: COLORE_AUTORI[rootAutore as Operatore] || "#525252" }}>{rootAutore}</span>
+            </p>
+          )}
           <p className={cn(
             "text-[12px] leading-snug",
             msg.archiviata ? "text-text-muted" : "text-text-primary",
@@ -612,16 +622,20 @@ function ScriviModal({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onInvia: (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null) => void;
+  onInvia: (messaggio: string, urgente: boolean, destinatario: Operatore[] | null, scadenza: string | null) => void;
   utenteCorrente: Operatore;
   editing?: Comunicazione | null;
-  replyTo?: Operatore | null;
+  replyTo?: Operatore[] | null;
 }) {
   const isEdit = !!editing;
 
   const [messaggio, setMessaggio] = useState(isEdit ? editing.messaggio : "");
   const [urgente, setUrgente] = useState(isEdit ? editing.urgente : false);
-  const [destinatario, setDestinatario] = useState<string>(isEdit ? (editing.destinatario ?? "") : (replyTo ?? ""));
+  const [destinatari, setDestinatari] = useState<Operatore[]>(
+    isEdit
+      ? (editing.destinatario ?? [])
+      : (replyTo ?? []),
+  );
   const [scadenza, setScadenza] = useState<string | null>(isEdit && editing.scadenza ? editing.scadenza.slice(0, 10) : null);
 
   // Reset form when opening/closing
@@ -630,12 +644,20 @@ function ScriviModal({
     if (editing) {
       setMessaggio(editing.messaggio);
       setUrgente(editing.urgente);
-      setDestinatario(editing.destinatario ?? "");
+      setDestinatari(editing.destinatario ?? []);
       setScadenza(editing.scadenza ? editing.scadenza.slice(0, 10) : null);
     } else {
-      setDestinatario(replyTo ?? "");
+      setDestinatari(replyTo ?? []);
     }
   }, [isOpen, editing, replyTo]);
+
+  const toggleDestinatario = (op: Operatore) => {
+    setDestinatari((prev) =>
+      prev.includes(op) ? prev.filter((o) => o !== op) : [...prev, op],
+    );
+  };
+
+  const isTutti = destinatari.length === 0;
 
   if (!isOpen) return null;
 
@@ -645,13 +667,13 @@ function ScriviModal({
     onInvia(
       messaggio.trim(),
       urgente,
-      (destinatario || null) as Operatore | null,
+      isTutti ? null : destinatari,
       scadenza || null,
     );
     if (!isEdit) {
       setMessaggio("");
       setUrgente(false);
-      setDestinatario("");
+      setDestinatari([]);
       setScadenza(null);
     }
     onClose();
@@ -661,7 +683,7 @@ function ScriviModal({
     onClose();
     setMessaggio("");
     setUrgente(false);
-    setDestinatario("");
+    setDestinatari([]);
     setScadenza(null);
   };
 
@@ -685,17 +707,42 @@ function ScriviModal({
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block font-body-small text-text-secondary mb-1.5">Destinatario</label>
-            <select
-              value={destinatario}
-              onChange={(e) => setDestinatario(e.target.value)}
-              className="w-full h-10 bg-bg-base border border-border-default rounded-md px-3 text-sm text-text-primary outline-none focus:border-accent-primary appearance-none"
-            >
-              <option value="">Tutti (comunicazione generale)</option>
-              {OPERATORI.filter((o) => o !== utenteCorrente).map((o) => (
-                <option key={o} value={o}>{o}</option>
+            <label className="block font-body-small text-text-secondary mb-2">Destinatari</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              <button
+                type="button"
+                onClick={() => setDestinatari([])}
+                className={cn(
+                  "px-2.5 h-8 rounded-md text-xs font-medium border transition-colors",
+                  isTutti
+                    ? "bg-accent-primary/20 text-accent-primary border-accent-primary/30"
+                    : "bg-bg-base border-border-default text-text-muted hover:text-text-secondary",
+                )}
+              >
+                Tutti
+              </button>
+              {OPERATORI.filter((o) => o !== utenteCorrente).map((op) => (
+                <button
+                  key={op}
+                  type="button"
+                  onClick={() => toggleDestinatario(op)}
+                  className={cn(
+                    "px-2.5 h-8 rounded-md text-xs font-medium border transition-colors",
+                    destinatari.includes(op)
+                      ? "border-accent-primary/30 text-accent-primary"
+                      : "bg-bg-base border-border-default text-text-muted hover:text-text-secondary",
+                  )}
+                  style={destinatari.includes(op)
+                    ? { backgroundColor: COLORE_AUTORI[op] + "15", borderColor: COLORE_AUTORI[op] + "40" }
+                    : undefined}
+                >
+                  {destinatari.includes(op) && (
+                    <span className="w-1.5 h-1.5 rounded-full mr-1.5 inline-block" style={{ backgroundColor: COLORE_AUTORI[op] }} />
+                  )}
+                  {op}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
           <div>
             <label className="block font-body-small text-text-secondary mb-1.5">
@@ -704,7 +751,7 @@ function ScriviModal({
             <textarea
               value={messaggio}
               onChange={(e) => setMessaggio(e.target.value)}
-              rows={5}
+              rows={4}
               placeholder="Scrivi il tuo messaggio..."
               className="w-full bg-bg-base border border-border-default rounded-md px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-primary resize-none"
               required
