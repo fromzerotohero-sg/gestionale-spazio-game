@@ -91,6 +91,7 @@ import { type Category, type Sede, SEDI } from "@/data/inventory";
 import {
   GRADI,
   GRADO_CUSTOM_VALUE,
+  GRADO_NONE,
   gradoToFormState,
   resolveGradoValue,
   type GradoFormMode,
@@ -1771,7 +1772,7 @@ export default function Inventario() {
       return;
     }
     const gradoSalvato = isGradoForm
-      ? resolveGradoValue(modalGradoMode, modalGradoCustom, "A")
+      ? resolveGradoValue(modalGradoMode, modalGradoCustom)
       : undefined;
     const tipoSalvato = isMonitorForm
       ? resolveTipoValue(modalTipoMode, modalTipoCustom, "LED19")
@@ -3300,6 +3301,7 @@ export default function Inventario() {
                     </option>
                   ))}
                   <option value={GRADO_CUSTOM_VALUE}>Altro (testo libero)</option>
+                  <option value={GRADO_NONE}>Nessuno</option>
                 </select>
                 {modalGradoMode === GRADO_CUSTOM_VALUE && (
                   <Input

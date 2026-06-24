@@ -19,7 +19,7 @@ export interface UnifiedItem {
   scaffale?: number;
   ripiano?: number;
   bancale?: string;
-  grado?: string;
+  grado?: string | null;
   bancaleVerificato?: boolean;
   bancaleVerificatoAt?: string;
   bancaleVerificatoDa?: Operatore;
@@ -49,7 +49,7 @@ export type InventoryRowInput = {
   scaffale?: number;
   ripiano?: number;
   bancale?: string;
-  grado?: string;
+  grado?: string | null;
   bancaleVerificato?: boolean;
   bancaleStatoOperativo?: BancaleStatoOperativo | null;
   bancaleStatoOperativoNota?: string | null;
