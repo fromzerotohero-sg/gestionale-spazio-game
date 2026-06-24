@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import {
-  TrendingUp,
-  TrendingDown,
   Plus,
   Wrench,
   FileUp,
@@ -11,7 +10,6 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle2,
-  Download,
   ChevronRight,
 } from 'lucide-react';
 import {
@@ -21,61 +19,10 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
+import { fetchDashboardData } from '@/lib/dashboard-api';
 
 
 const easeSmooth = [0.16, 1, 0.3, 1] as [number, number, number, number];
-
-/* ───────────────────── DATA ───────────────────── */
-
-const kpiData = [
-  { label: 'SCHEDE', value: 26900, trend: 2.3, accent: false, category: 'schede' },
-  { label: 'CABINET', value: 32210, trend: -1.1, accent: false, category: 'cabinet' },
-  { label: 'CAMBIA MONETE', value: 23610, trend: 5.7, accent: true, category: 'cambiamonete' },
-  { label: 'ACCESSORI', value: 21172.10, trend: 0, accent: false, category: 'accessori' },
-  { label: 'MONITOR', value: 28686, trend: 12.4, accent: true, category: 'monitor' },
-];
-
-const totalValue = kpiData.reduce((acc, k) => acc + k.value, 0);
-
-const chartData = [
-  { name: 'Schede', value: 26900, color: '#D0FF59', items: 28 },
-  { name: 'Cabinet', value: 32210, color: '#22C55E', items: 35 },
-  { name: 'Cambia Monete', value: 23610, color: '#3B82F6', items: 22 },
-  { name: 'Accessori', value: 21172, color: '#8B5CF6', items: 25 },
-  { name: 'Monitor', value: 28686, color: '#F97316', items: 22 },
-];
-
-const alerts = [
-  {
-    id: 1,
-    severity: 'rosso' as const,
-    title: 'Scorte critiche — TELAI BISTROT',
-    description: 'Quantita sotto la soglia minima: 92 unita rimaste',
-    time: '2 ore fa',
-  },
-  {
-    id: 2,
-    severity: 'giallo' as const,
-    title: 'Riparazione in attesa — EARTH NUOVO',
-    description: 'Assegnazione tecnico pendente da 3 giorni',
-    time: '1 giorno fa',
-  },
-  {
-    id: 3,
-    severity: 'verde' as const,
-    title: 'Inventario aggiornato',
-    description: 'Monitor Grado A: 21 nuovi articoli registrati',
-    time: '3 giorni fa',
-  },
-];
-
-const activities = [
-  { id: 1, type: 'verde' as const, action: 'Aggiunto', item: 'APEX cambiamonete', user: 'Marco R.', time: '10 minuti fa' },
-  { id: 2, type: 'blu' as const, action: 'Modificato', item: 'Quantita MASTER 5: 11 → 12', user: 'Luca B.', time: '2 ore fa' },
-  { id: 3, type: 'arancione' as const, action: 'Riparazione avviata', item: 'EARTH cabinet #3', user: 'Tecnico A.', time: '5 ore fa' },
-  { id: 4, type: 'blu' as const, action: 'Aggiornato prezzo', item: 'FULL METAL: €100 → €120', user: 'Admin', time: '1 giorno fa' },
-  { id: 5, type: 'grigio' as const, action: 'Archiviato', item: 'REGAL DISTRUTTO', user: 'Sistema', time: '2 giorni fa' },
-];
 
 const dotColors: Record<string, string> = {
   verde: '#22C55E',
@@ -120,9 +67,8 @@ function CountUp({ target, duration = 1200, prefix = '€', decimals = 0 }: { ta
   return <span ref={ref}>{formatted}</span>;
 }
 
-function KPICard({ kpi, index }: { kpi: typeof kpiData[0]; index: number }) {
+function KPICard({ cat, index }: { cat: { name: string; value: number; items: number; category: string; color: string }; index: number }) {
   const navigate = useNavigate();
-  const trendUp = kpi.trend > 0;
 
   return (
     <motion.button
@@ -131,37 +77,21 @@ function KPICard({ kpi, index }: { kpi: typeof kpiData[0]; index: number }) {
       transition={{ duration: 0.4, delay: index * 0.08, ease: easeSmooth }}
       whileHover={{ y: -1, borderColor: '#2A2A2A' }}
       whileTap={{ scale: 0.98 }}
-      onClick={() => navigate(`/inventario?categoria=${kpi.category}`)}
-      className={`
-        relative bg-bg-elevated rounded-xl p-6 text-left w-full
-        border transition-shadow duration-200 hover:shadow-glow
-        ${kpi.accent ? 'border-t border-t-[#D0FF5930]' : 'border-border-subtle'}
-      `}
+      onClick={() => navigate(`/inventario?categoria=${cat.category}`)}
+      className="relative bg-bg-elevated rounded-xl p-6 text-left w-full border border-border-subtle transition-shadow duration-200 hover:shadow-glow"
     >
-      {kpi.accent && (
-        <div className="absolute top-0 left-4 right-4 h-px card-border-top" />
-      )}
-      <p className="font-caption text-text-muted mb-3">{kpi.label}</p>
+      <p className="font-caption text-text-muted mb-3">{cat.name.toUpperCase()}</p>
       <p className="font-data-lg text-text-primary">
-        <CountUp target={kpi.value} decimals={kpi.label === 'ACCESSORI' ? 0 : 0} />
+        <CountUp target={cat.value} />
       </p>
-      {kpi.trend !== 0 && (
-        <div className="flex items-center gap-1 mt-2">
-          {trendUp ? (
-            <TrendingUp size={12} className="text-status-verde" />
-          ) : (
-            <TrendingDown size={12} className="text-status-rosso" />
-          )}
-          <span className={`font-caption ${trendUp ? 'text-status-verde' : 'text-status-rosso'}`}>
-            {trendUp ? '+' : ''}{kpi.trend}%
-          </span>
-        </div>
-      )}
+      <div className="flex items-center gap-1 mt-2">
+        <span className="font-caption text-text-muted">{cat.items} articoli</span>
+      </div>
     </motion.button>
   );
 }
 
-function HeroSection() {
+function HeroSection({ totalValue, totalItems, categories }: { totalValue: number; totalItems: number; categories: number }) {
   const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
@@ -205,7 +135,7 @@ function HeroSection() {
           transition={{ duration: 0.4, delay: 0.4, ease: easeSmooth }}
           className="font-data-lg text-accent-primary mb-1"
         >
-          €132.578
+          <CountUp target={totalValue} />
         </motion.p>
         <motion.p
           initial={{ opacity: 0, x: -20 }}
@@ -213,7 +143,7 @@ function HeroSection() {
           transition={{ duration: 0.4, delay: 0.5, ease: easeSmooth }}
           className="font-caption text-text-muted mb-6"
         >
-          Aggiornato al 31/12/2025
+          Aggiornato in tempo reale
         </motion.p>
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -221,9 +151,9 @@ function HeroSection() {
           transition={{ duration: 0.4, delay: 0.6, ease: easeSmooth }}
           className="flex items-center gap-3"
         >
-          <span className="font-body-small text-text-secondary">132 articoli</span>
+          <span className="font-body-small text-text-secondary">{totalItems} articoli</span>
           <span className="w-px h-3 bg-border-subtle" />
-          <span className="font-body-small text-text-secondary">5 categorie</span>
+          <span className="font-body-small text-text-secondary">{categories} categorie</span>
           <span className="w-px h-3 bg-border-subtle" />
           <span className="font-body-small text-text-secondary">3 sedi</span>
         </motion.div>
@@ -232,7 +162,7 @@ function HeroSection() {
   );
 }
 
-function CategoryChart() {
+function CategoryChart({ categories, totalValue }: { categories: { name: string; value: number; items: number; color: string }[]; totalValue: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
@@ -249,7 +179,7 @@ function CategoryChart() {
         <ResponsiveContainer width={200} height={200}>
           <PieChart>
             <Pie
-              data={chartData}
+              data={categories}
               cx="50%"
               cy="50%"
               innerRadius={60}
@@ -262,7 +192,7 @@ function CategoryChart() {
               onMouseEnter={(_, index) => setActiveIndex(index)}
               onMouseLeave={() => setActiveIndex(null)}
             >
-              {chartData.map((entry, index) => (
+              {categories.map((entry, index) => (
                 <Cell
                   key={entry.name}
                   fill={entry.color}
@@ -291,7 +221,7 @@ function CategoryChart() {
 
       {/* Legend */}
       <div className="grid grid-cols-2 gap-3 mt-4">
-        {chartData.map((item) => (
+        {categories.map((item) => (
           <div key={item.name} className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
             <span className="font-body-small text-text-secondary">{item.name}</span>
@@ -305,7 +235,7 @@ function CategoryChart() {
   );
 }
 
-function CategoryList() {
+function CategoryList({ categories, totalValue }: { categories: { name: string; value: number; items: number; color: string }[]; totalValue: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true });
 
@@ -319,7 +249,7 @@ function CategoryList() {
     >
       <h2 className="font-heading-2 text-text-primary mb-6">Dettaglio Categorie</h2>
       <div className="space-y-4">
-        {chartData.map((item, index) => (
+        {categories.map((item, index) => (
           <motion.div
             key={item.name}
             initial={{ opacity: 0, x: -15 }}
@@ -350,8 +280,8 @@ function CategoryList() {
   );
 }
 
-function AlertsSection() {
-  const [dismissed, setDismissed] = useState<number[]>([]);
+function AlertsSection({ alerts }: { alerts: { id: string; severity: "rosso" | "giallo" | "verde"; title: string; description: string; time: string }[] }) {
+  const [dismissed, setDismissed] = useState<string[]>([]);
   const visibleAlerts = alerts.filter((a) => !dismissed.includes(a.id));
 
   return (
@@ -415,7 +345,7 @@ function AlertsSection() {
   );
 }
 
-function ActivityTimeline() {
+function ActivityTimeline({ activities }: { activities: { id: string; type: "verde" | "blu" | "arancione" | "grigio"; action: string; item: string; operatore: string; time: string }[] }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -457,7 +387,7 @@ function ActivityTimeline() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="font-caption text-text-muted">{activity.user}</span>
+                  <span className="font-caption text-text-muted">{activity.operatore}</span>
                   <span className="font-caption text-text-muted">·</span>
                   <span className="font-caption text-text-muted">{activity.time}</span>
                 </div>
@@ -510,6 +440,18 @@ function QuickActions() {
 /* ───────────────────── MAIN DASHBOARD ───────────────────── */
 
 export default function Dashboard() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: fetchDashboardData,
+    refetchInterval: 60000,
+  });
+
+  const categories = data?.categories ?? [];
+  const totalValue = data?.totalValue ?? 0;
+  const totalItems = data?.totalItems ?? 0;
+  const alerts = data?.alerts ?? [];
+  const activities = data?.activities ?? [];
+
   return (
     <div className="max-w-[1440px] mx-auto">
       {/* Page Header */}
@@ -524,46 +466,40 @@ export default function Dashboard() {
         <p className="font-body text-text-secondary mt-2">Panoramica del magazzino Spazio Games</p>
       </motion.div>
 
-      {/* Header actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1, ease: easeSmooth }}
-        className="flex items-center gap-3 mb-8"
-      >
-        <button className="h-10 px-4 rounded-lg border border-border-default bg-transparent font-body-small text-text-secondary hover:bg-bg-hover hover:text-text-primary hover:border-border-hover transition-colors">
-          Ultimi 30 giorni
-        </button>
-        <button className="h-10 px-5 rounded-lg bg-accent-primary font-body-small font-semibold text-bg-base hover:bg-accent-secondary hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2">
-          <Download size={16} />
-          Esporta Report
-        </button>
-      </motion.div>
-
       {/* Hero Section */}
-      <HeroSection />
+      {isLoading ? (
+        <div className="w-full h-[320px] rounded-xl mb-8 bg-bg-elevated animate-pulse flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : isError ? (
+        <div className="w-full h-[120px] rounded-xl mb-8 bg-status-rosso/10 border border-status-rosso/30 flex items-center justify-center">
+          <p className="text-status-rosso font-body">Errore nel caricamento dati</p>
+        </div>
+      ) : (
+        <HeroSection totalValue={totalValue} totalItems={totalItems} categories={categories.length} />
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
-        {kpiData.map((kpi, index) => (
-          <KPICard key={kpi.label} kpi={kpi} index={index} />
+        {categories.map((cat, index) => (
+          <KPICard key={cat.category} cat={cat} index={index} />
         ))}
       </div>
 
       {/* Chart + Category List */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
         <div className="lg:col-span-2">
-          <CategoryChart />
+          <CategoryChart categories={categories} totalValue={totalValue} />
         </div>
         <div className="lg:col-span-3">
-          <CategoryList />
+          <CategoryList categories={categories} totalValue={totalValue} />
         </div>
       </div>
 
       {/* Alerts + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <AlertsSection />
-        <ActivityTimeline />
+        <AlertsSection alerts={alerts} />
+        <ActivityTimeline activities={activities} />
       </div>
 
       {/* Quick Actions */}
