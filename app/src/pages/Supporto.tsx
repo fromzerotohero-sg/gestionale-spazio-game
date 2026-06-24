@@ -61,6 +61,7 @@ export default function Supporto() {
   const [showScrivi, setShowScrivi] = useState(false);
   const [editingCom, setEditingCom] = useState<Comunicazione | null>(null);
   const [replyTo, setReplyTo] = useState<Operatore | null>(null);
+  const [replyThreadId, setReplyThreadId] = useState<string | null>(null);
   const [utenteCorrente, setUtenteCorrente] = useState<Operatore>(() => {
     try {
       const saved = localStorage.getItem(UTENTE_KEY);
@@ -181,11 +182,12 @@ export default function Supporto() {
         await handleModifica(editingCom.id, { messaggio, urgente, destinatario, scadenza });
         setEditingCom(null);
       } else {
-        await handleCrea(messaggio, urgente, destinatario, scadenza, null);
+        await handleCrea(messaggio, urgente, destinatario, scadenza, replyThreadId);
       }
       setReplyTo(null);
+      setReplyThreadId(null);
     },
-    [editingCom, handleModifica, handleCrea],
+    [editingCom, handleModifica, handleCrea, replyThreadId],
   );
 
   const handleArchivia = useCallback(async (id: string) => {
@@ -251,7 +253,7 @@ export default function Supporto() {
               ))}
             </SelectContent>
           </SelectRoot>
-          <Button onClick={() => { setEditingCom(null); setReplyTo(null); setShowScrivi(true); }}>
+          <Button onClick={() => { setEditingCom(null); setReplyTo(null); setReplyThreadId(null); setShowScrivi(true); }}>
             <Plus size={16} /> Nuova Comunicazione
           </Button>
         </div>
@@ -333,7 +335,7 @@ export default function Supporto() {
                 onElimina={handleElimina}
                 onInviaEmail={handleInviaEmail}
                 onEdit={setEditingCom}
-                onReply={(com) => { setReplyTo(com.autore); setShowScrivi(true); }}
+                onReply={(com) => { setReplyTo(com.autore); setReplyThreadId(com.threadId || com.id); setShowScrivi(true); }}
               />
             ))}
           </AnimatePresence>
@@ -343,7 +345,7 @@ export default function Supporto() {
       {/* Modal scrivi */}
       <ScriviModal
         isOpen={showScrivi || editingCom !== null}
-        onClose={() => { setShowScrivi(false); setEditingCom(null); setReplyTo(null); }}
+        onClose={() => { setShowScrivi(false); setEditingCom(null); setReplyTo(null); setReplyThreadId(null); }}
         onInvia={handleModalSubmit}
         utenteCorrente={utenteCorrente}
         editing={editingCom}
