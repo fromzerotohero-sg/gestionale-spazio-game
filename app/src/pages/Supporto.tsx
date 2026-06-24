@@ -510,7 +510,7 @@ function ChatBubble({
           {/* Header line */}
           <div className="flex items-center gap-1 flex-wrap leading-none">
             {isFirst || msg.autore !== rootAutore ? (
-              <span className="font-semibold text-[10px]" style={{ color: colore }}>
+              <span className="font-semibold text-xs" style={{ color: colore }}>
                 {msg.autore}
               </span>
             ) : null}
