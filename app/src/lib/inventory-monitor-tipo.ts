@@ -1,9 +1,19 @@
 export const DEFAULT_MONITOR_TIPI = [
+  "LCD15",
+  "LCD17",
+  "LED17",
   "LCD19",
   "LED19",
+  "LCD19PR",
+  "LED19PR",
+  "LCD191610",
+  "LED191610",
+  "LCD21.5",
+  "LED21.5",
+  "LCD22",
   "LED22",
-  "LCD 16:10",
-  "LED 16:10",
+  "LED27",
+  "LED32",
 ] as const;
 
 export type MonitorTipoPreset = (typeof DEFAULT_MONITOR_TIPI)[number];
