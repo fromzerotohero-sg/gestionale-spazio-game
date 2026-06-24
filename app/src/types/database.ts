@@ -378,6 +378,7 @@ export type Database = {
           urgente: boolean;
           archiviata: boolean;
           scadenza: string | null;
+          thread_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -389,6 +390,7 @@ export type Database = {
           urgente?: boolean;
           archiviata?: boolean;
           scadenza?: string | null;
+          thread_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -400,6 +402,7 @@ export type Database = {
           urgente?: boolean;
           archiviata?: boolean;
           scadenza?: string | null;
+          thread_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

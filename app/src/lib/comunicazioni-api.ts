@@ -11,6 +11,7 @@ export interface Comunicazione {
   urgente: boolean;
   archiviata: boolean;
   scadenza: string | null;
+  threadId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,6 +27,7 @@ function rowToComunicazione(row: Row): Comunicazione {
     urgente: row.urgente,
     archiviata: row.archiviata,
     scadenza: row.scadenza,
+    threadId: row.thread_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -50,6 +52,7 @@ export async function createComunicazione(
   urgente: boolean,
   destinatario: Operatore | null,
   scadenza: string | null,
+  threadId: string | null,
 ): Promise<Comunicazione> {
   if (!isSupabaseConfigured) {
     throw new Error(supabaseConfigError ?? "Supabase non configurato");
@@ -62,6 +65,7 @@ export async function createComunicazione(
     destinatario: destinatario ?? null,
   };
   if (scadenza) insertRow.scadenza = scadenza;
+  if (threadId) insertRow.thread_id = threadId;
 
   const { data, error } = await (getSupabase()
     .from("comunicazioni" as any)
@@ -70,6 +74,19 @@ export async function createComunicazione(
     .single() as any);
 
   if (error) throw error;
+
+  // Se non ha un thread_id, impostalo = proprio id (nuovo thread)
+  if (!data.thread_id) {
+    const { data: updated, error: err2 } = await (getSupabase()
+      .from("comunicazioni" as any)
+      .update({ thread_id: data.id })
+      .eq("id", data.id)
+      .select()
+      .single() as any);
+    if (err2) throw err2;
+    return rowToComunicazione(updated);
+  }
+
   return rowToComunicazione(data);
 }
 
