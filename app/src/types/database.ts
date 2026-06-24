@@ -303,6 +303,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      moduli: {
+        Row: {
+          id: string;
+          tipo: "ordine_monitor" | "ordine_schede_65";
+          titolo: string;
+          cliente: string;
+          agente: string;
+          data_ordine: string;
+          consegna_stimata: string | null;
+          numero_offerta: string;
+          numero_ordine: string;
+          articoli: Json;
+          dati_aggiuntivi: Json;
+          note: string;
+          created_at: string;
+          updated_at: string;
+          created_by: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+        };
+        Insert: {
+          id?: string;
+          tipo: "ordine_monitor" | "ordine_schede_65";
+          titolo?: string;
+          cliente?: string;
+          agente?: string;
+          data_ordine?: string;
+          consegna_stimata?: string | null;
+          numero_offerta?: string;
+          numero_ordine?: string;
+          articoli?: Json;
+          dati_aggiuntivi?: Json;
+          note?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+        };
+        Update: {
+          id?: string;
+          tipo?: "ordine_monitor" | "ordine_schede_65";
+          titolo?: string;
+          cliente?: string;
+          agente?: string;
+          data_ordine?: string;
+          consegna_stimata?: string | null;
+          numero_offerta?: string;
+          numero_ordine?: string;
+          articoli?: Json;
+          dati_aggiuntivi?: Json;
+          note?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: "Giangrossi" | "Irene" | "Matteo" | "Paolo" | null;
+        };
+        Relationships: [];
+      };
       documents: {
         Row: Record<string, unknown>;
         Insert: Record<string, unknown>;
