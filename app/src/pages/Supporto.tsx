@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Send, X, Mail, Archive, Trash2, AlertTriangle,
-  MessageSquare, User, Clock, Calendar, CalendarIcon, Reply,
+  MessageSquare, User, Calendar, CalendarIcon, Reply,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -379,184 +379,6 @@ export default function Supporto() {
   );
 }
 
-/* ------------ CARD COMUNICAZIONE ------------ */
-
-function ComunicazioneCard({
-  com,
-  isMia,
-  onModifica,
-  onArchivia,
-  onElimina,
-  onInviaEmail,
-  onEdit,
-  onReply,
-  isReply,
-  threadLength,
-  expanded,
-  onToggleExpand,
-}: {
-  com: Comunicazione;
-  isMia: boolean;
-  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore | null }) => void;
-  onArchivia: (id: string) => void;
-  onElimina: (id: string) => void;
-  onInviaEmail: (com: Comunicazione) => void;
-  onEdit: (com: Comunicazione) => void;
-  onReply: (com: Comunicazione) => void;
-  isReply?: boolean;
-  threadLength?: number;
-  expanded?: boolean;
-  onToggleExpand?: () => void;
-}) {
-  const colore = COLORE_AUTORI[com.autore] || "#525252";
-  const toggleUrgente = () => {
-    onModifica(com.id, { urgente: !com.urgente });
-  };
-
-  const coloreBg = colore + "15";
-  const coloreBordo = colore + "30";
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.25, ease: easeSmooth }}
-      className={cn(
-        "rounded-xl border p-4 transition-all duration-200",
-        com.urgente
-          ? "border-status-rosso/40 bg-status-rosso/[0.04]"
-          : com.destinatario
-            ? "border-accent-primary/30 bg-accent-primary/[0.03]"
-            : "border-border-subtle bg-bg-elevated",
-        com.archiviata && "opacity-50",
-        isReply && "border-l-2 border-l-accent-primary/30 bg-bg-elevated",
-      )}
-    >
-      <div className="flex items-start gap-3">
-        {/* Avatar autore */}
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
-          style={{ backgroundColor: coloreBg, color: colore, border: "1px solid " + coloreBordo }}
-        >
-          {inizialiAutore(com.autore)}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-semibold text-sm" style={{ color: colore }}>
-              {com.autore}
-            </span>
-            {com.destinatario && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium"
-                style={{ backgroundColor: COLORE_AUTORI[com.destinatario] + "15", color: COLORE_AUTORI[com.destinatario] }}>
-                <User size={10} />
-                {com.destinatario}
-              </span>
-            )}
-            {!com.destinatario && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-bg-hover text-text-muted">
-                <MessageSquare size={10} />
-                Generale
-              </span>
-            )}
-            {com.urgente && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-status-rosso/15 text-status-rosso">
-                <AlertTriangle size={10} />
-                URGENTE
-              </span>
-            )}
-            {com.scadenza && (() => {
-              const diff = new Date(com.scadenza).getTime() - Date.now();
-              const giorni = Math.ceil(diff / (1000 * 60 * 60 * 24));
-              const isScaduta = diff < 0;
-              const inScadenza = giorni <= 3;
-              return (
-                <span className={cn(
-                  "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium",
-                  isScaduta ? "bg-status-rosso/15 text-status-rosso" :
-                  inScadenza ? "bg-[#EAB308]/15 text-[#EAB308]" :
-                  "bg-bg-hover text-text-muted",
-                )}>
-                  <Calendar size={10} />
-                  {isScaduta ? "Scaduta" : `Entro ${format(new Date(com.scadenza), "d MMM", { locale: it })}`}
-                </span>
-              );
-            })()}
-            {!isReply && threadLength !== undefined && threadLength > 1 && (
-              <button
-                onClick={onToggleExpand}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-bg-hover text-text-muted hover:text-accent-primary transition-colors"
-              >
-                <svg
-                  width="10" height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  className={cn("transition-transform", expanded && "rotate-180")}
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-                {threadLength - 1} rispost{threadLength - 1 === 1 ? "a" : "e"}
-              </button>
-            )}
-            <span className="font-caption text-text-muted ml-auto text-xs flex items-center gap-1">
-              <Clock size={10} />
-              {format(new Date(com.updatedAt), "d MMM HH:mm", { locale: it })}
-            </span>
-          </div>
-
-          {/* Messaggio */}
-          <p className={cn(
-            "text-sm leading-relaxed mt-1",
-            com.archiviata ? "text-text-muted" : "text-text-primary",
-          )}>
-            {com.messaggio}
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {isMia && (
-            <>
-              <button onClick={() => onEdit(com)} title="Modifica"
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-              </button>
-              <button onClick={toggleUrgente} title={com.urgente ? "Togli urgenza" : "Segna urgente"}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-hover transition-colors"
-                style={{ color: com.urgente ? "#EF4444" : "#525252" }}>
-                <AlertTriangle size={14} />
-              </button>
-            </>
-          )}
-          <button onClick={() => onArchivia(com.id)} title="Archivia"
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
-            <Archive size={14} />
-          </button>
-          <button onClick={() => onInviaEmail(com)} title="Invia via email"
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
-            <Mail size={14} />
-          </button>
-          <button onClick={() => onReply(com)} title="Rispondi"
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-accent-primary/20 text-text-muted hover:text-accent-primary transition-colors">
-            <Reply size={14} />
-          </button>
-          {isMia && (
-            <button onClick={() => onElimina(com.id)} title="Elimina"
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-status-rosso/20 text-text-muted hover:text-status-rosso transition-colors">
-              <Trash2 size={14} />
-            </button>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
 /* ------------ THREAD CARD ------------ */
 
 function ThreadCard({
@@ -579,8 +401,6 @@ function ThreadCard({
   onReply: (com: Comunicazione) => void;
 }) {
   const root = msgs[0];
-  const replies = msgs.slice(1);
-  const [expanded, setExpanded] = useState(replies.length > 0);
 
   return (
     <motion.div
@@ -589,61 +409,194 @@ function ThreadCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.25, ease: easeSmooth }}
-    >
-      {/* Root message */}
-      <ComunicazioneCard
-        com={root}
-        isMia={isMia(root)}
-        onModifica={onModifica}
-        onArchivia={onArchivia}
-        onElimina={onElimina}
-        onInviaEmail={onInviaEmail}
-        onEdit={onEdit}
-        onReply={onReply}
-        threadLength={msgs.length}
-        expanded={expanded}
-        onToggleExpand={() => setExpanded(!expanded)}
-      />
-
-      {/* Replies */}
-      <AnimatePresence>
-        {expanded && replies.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: easeSmooth }}
-            className="ml-9 pl-4 border-l-2 border-border-subtle space-y-2 mt-2"
-          >
-            {replies.map((msg) => (
-              <ComunicazioneCard
-                key={msg.id}
-                com={msg}
-                isMia={isMia(msg)}
-                onModifica={onModifica}
-                onArchivia={onArchivia}
-                onElimina={onElimina}
-                onInviaEmail={onInviaEmail}
-                onEdit={onEdit}
-                onReply={onReply}
-                isReply
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Quick reply button when collapsed with replies */}
-      {!expanded && replies.length > 0 && (
-        <button
-          onClick={() => setExpanded(true)}
-          className="ml-14 mt-1 flex items-center gap-1 text-xs text-text-muted hover:text-accent-primary transition-colors"
-        >
-          <Reply size={11} />
-          Mostra {replies.length} rispost{replies.length === 1 ? "a" : "e"}
-        </button>
+      className={cn(
+        "rounded-xl border overflow-hidden transition-all duration-200",
+        root.urgente
+          ? "border-status-rosso/40 bg-status-rosso/[0.04]"
+          : root.destinatario
+            ? "border-accent-primary/30 bg-accent-primary/[0.03]"
+            : "border-border-subtle bg-bg-elevated",
+        root.archiviata && "opacity-50",
       )}
+    >
+      {msgs.map((msg, idx) => {
+        const coloreMsg = COLORE_AUTORI[msg.autore] || "#525252";
+        const isLast = idx === msgs.length - 1;
+        return (
+          <ChatBubble
+            key={msg.id}
+            msg={msg}
+            isMia={isMia(msg)}
+            colore={coloreMsg}
+            isFirst={idx === 0}
+            isLast={isLast}
+            rootAutore={root.autore}
+            onModifica={onModifica}
+            onArchivia={onArchivia}
+            onElimina={onElimina}
+            onInviaEmail={onInviaEmail}
+            onEdit={onEdit}
+            onReply={onReply}
+          />
+        );
+      })}
     </motion.div>
+  );
+}
+
+/* ------------ CHAT BUBBLE ------------ */
+
+function ChatBubble({
+  msg,
+  isMia,
+  colore,
+  isFirst,
+  isLast,
+  rootAutore,
+  onModifica,
+  onArchivia,
+  onElimina,
+  onInviaEmail,
+  onEdit,
+  onReply,
+}: {
+  msg: Comunicazione;
+  isMia: boolean;
+  colore: string;
+  isFirst: boolean;
+  isLast: boolean;
+  rootAutore: string;
+  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore | null }) => void;
+  onArchivia: (id: string) => void;
+  onElimina: (id: string) => void;
+  onInviaEmail: (com: Comunicazione) => void;
+  onEdit: (com: Comunicazione) => void;
+  onReply: (com: Comunicazione) => void;
+}) {
+  const toggleUrgente = () => {
+    onModifica(msg.id, { urgente: !msg.urgente });
+  };
+
+  return (
+    <div className={cn(
+      "relative px-4 group",
+      !isLast && "border-b border-border-subtle/50",
+      isFirst ? "pt-4" : "",
+      isLast ? "pb-4" : "",
+    )}>
+      <div className="flex items-start gap-3">
+        {/* Avatar - only show on first message or if author changes */}
+        {isFirst ? (
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
+            style={{ backgroundColor: colore + "15", color: colore, border: "1px solid " + colore + "30" }}
+          >
+            {inizialiAutore(msg.autore)}
+          </div>
+        ) : msg.autore !== rootAutore ? (
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
+            style={{ backgroundColor: colore + "15", color: colore, border: "1px solid " + colore + "30" }}
+          >
+            {inizialiAutore(msg.autore)}
+          </div>
+        ) : (
+          <div className="w-10 flex-shrink-0 flex items-start justify-center pt-0.5">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colore + "40" }} />
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          {/* Header line */}
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            {isFirst || msg.autore !== rootAutore ? (
+              <span className="font-semibold text-xs" style={{ color: colore }}>
+                {msg.autore}
+              </span>
+            ) : null}
+            {isFirst && msg.destinatario && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium"
+                style={{ backgroundColor: COLORE_AUTORI[msg.destinatario] + "15", color: COLORE_AUTORI[msg.destinatario] }}>
+                <User size={10} />
+                {msg.destinatario}
+              </span>
+            )}
+            {isFirst && msg.urgente && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-status-rosso/15 text-status-rosso">
+                <AlertTriangle size={10} />
+                URGENTE
+              </span>
+            )}
+            {isFirst && msg.scadenza && (() => {
+              const diff = new Date(msg.scadenza).getTime() - Date.now();
+              const giorni = Math.ceil(diff / (1000 * 60 * 60 * 24));
+              const isScaduta = diff < 0;
+              const inScadenza = giorni <= 3;
+              return (
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium",
+                  isScaduta ? "bg-status-rosso/15 text-status-rosso" :
+                  inScadenza ? "bg-[#EAB308]/15 text-[#EAB308]" :
+                  "bg-bg-hover text-text-muted",
+                )}>
+                  <Calendar size={10} />
+                  {isScaduta ? "Scaduta" : `Entro ${format(new Date(msg.scadenza), "d MMM", { locale: it })}`}
+                </span>
+              );
+            })()}
+            <span className="font-caption text-text-muted ml-auto text-[11px] whitespace-nowrap">
+              {format(new Date(msg.updatedAt), "d MMM HH:mm", { locale: it })}
+            </span>
+          </div>
+
+          {/* Message */}
+          <p className={cn(
+            "text-sm leading-relaxed",
+            msg.archiviata ? "text-text-muted" : "text-text-primary",
+          )}>
+            {msg.messaggio}
+          </p>
+
+          {/* Actions */}
+          <div className={cn(
+            "flex items-center gap-1 mt-1.5",
+            isLast ? "opacity-100" : "opacity-0 group-hover:opacity-100 transition-opacity",
+          )}>
+            {isMia && (
+              <>
+                <span onClick={() => onEdit(msg)} title="Modifica"
+                  className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                </span>
+                <span onClick={toggleUrgente} title={msg.urgente ? "Togli urgenza" : "Segna urgente"}
+                  className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover transition-colors"
+                  style={{ color: msg.urgente ? "#EF4444" : "#525252" }}>
+                  <AlertTriangle size={12} />
+                </span>
+              </>
+            )}
+            <span onClick={() => onArchivia(msg.id)} title="Archivia"
+              className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
+              <Archive size={12} />
+            </span>
+            <span onClick={() => onInviaEmail(msg)} title="Invia via email"
+              className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
+              <Mail size={12} />
+            </span>
+            <span onClick={() => onReply(msg)} title="Rispondi"
+              className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-accent-primary/20 text-text-muted hover:text-accent-primary transition-colors">
+              <Reply size={12} />
+            </span>
+            {isMia && (
+              <span onClick={() => onElimina(msg.id)} title="Elimina"
+                className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-status-rosso/20 text-text-muted hover:text-status-rosso transition-colors">
+                <Trash2 size={12} />
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
