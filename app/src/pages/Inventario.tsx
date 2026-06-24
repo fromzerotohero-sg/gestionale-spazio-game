@@ -1138,6 +1138,20 @@ export default function Inventario() {
     [colH],
   );
 
+  const gradoColumn = useMemo(
+    () =>
+      colH.accessor("grado", {
+        header: ({ column }) => (
+          <SortableColumnHeader label="Grado" column={column} />
+        ),
+        cell: ({ getValue }) => (
+          <StatusBadge label={getValue() || ""} variant="grado" />
+        ),
+        size: 80,
+      }),
+    [colH],
+  );
+
   const noteColumn = useMemo(
     () =>
       colH.accessor("note", {
@@ -1397,6 +1411,18 @@ export default function Inventario() {
       ];
     }
 
+    if (activeTab === "cabinet") {
+      return [
+        ...baseColumns,
+        noteColumn,
+        gradoColumn,
+        sedeColumn,
+        verificaBancaleColumn,
+        lastModifiedColumn,
+        actionsColumn,
+      ];
+    }
+
     return [
       ...baseColumns,
       noteColumn,
@@ -1411,6 +1437,7 @@ export default function Inventario() {
     monitorExtraCols,
     categoriaColumn,
     noteColumn,
+    gradoColumn,
     schedeNullaostaColumn,
     bancaleStatoOperativoColumn,
     sedeColumn,
@@ -1725,8 +1752,10 @@ export default function Inventario() {
 
     const isMonitorForm =
       activeTab === "monitor" || editingItem?.categoria === "monitor";
+    const isGradoForm =
+      isMonitorForm || activeTab === "cabinet" || editingItem?.categoria === "cabinet";
     if (
-      isMonitorForm &&
+      isGradoForm &&
       modalGradoMode === GRADO_CUSTOM_VALUE &&
       !modalGradoCustom.trim()
     ) {
@@ -1741,7 +1770,7 @@ export default function Inventario() {
       toast.error("Inserisci un tipo personalizzato");
       return;
     }
-    const gradoSalvato = isMonitorForm
+    const gradoSalvato = isGradoForm
       ? resolveGradoValue(modalGradoMode, modalGradoCustom, "A")
       : undefined;
     const tipoSalvato = isMonitorForm
@@ -1782,7 +1811,7 @@ export default function Inventario() {
             tipo: tipoSalvato ?? editingItem.tipo,
             modello: (formData.get("modello") as string) || editingItem.modello,
             marca: (formData.get("marca") as string) || editingItem.marca,
-            ...(isMonitorForm ? { grado: gradoSalvato } : {}),
+            ...(isGradoForm ? { grado: gradoSalvato } : {}),
             scaffale: Number(formData.get("scaffale")) || editingItem.scaffale,
             ripiano: Number(formData.get("ripiano")) || editingItem.ripiano,
             bancale: (formData.get("bancale") as string) || editingItem.bancale,
@@ -3173,34 +3202,6 @@ export default function Inventario() {
                       />
                     )}
                   </div>
-                  <div>
-                    <Label className="text-text-secondary mb-1.5 block">
-                      Grado *
-                    </Label>
-                    <select
-                      value={modalGradoMode}
-                      onChange={(e) =>
-                        setModalGradoMode(e.target.value as GradoFormMode)
-                      }
-                      className="h-9 w-full rounded-md border border-border-default bg-bg-elevated px-3 text-text-primary text-sm focus:border-accent-primary focus:outline-none"
-                    >
-                      {GRADI.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                      <option value={GRADO_CUSTOM_VALUE}>Altro (testo libero)</option>
-                    </select>
-                    {modalGradoMode === GRADO_CUSTOM_VALUE && (
-                      <Input
-                        value={modalGradoCustom}
-                        onChange={(e) => setModalGradoCustom(e.target.value)}
-                        placeholder="Scrivi il grado..."
-                        required
-                        className="mt-2 bg-bg-elevated border-border-default"
-                      />
-                    )}
-                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -3277,6 +3278,39 @@ export default function Inventario() {
                 disabled={!operatore}
               />
               </>
+            )}
+
+            {/* Grado field - for monitor and cabinet */}
+            {(activeTab === "monitor" || activeTab === "cabinet" ||
+              editingItem?.categoria === "monitor" || editingItem?.categoria === "cabinet") && (
+              <div>
+                <Label className="text-text-secondary mb-1.5 block">
+                  Grado *
+                </Label>
+                <select
+                  value={modalGradoMode}
+                  onChange={(e) =>
+                    setModalGradoMode(e.target.value as GradoFormMode)
+                  }
+                  className="h-9 w-full rounded-md border border-border-default bg-bg-elevated px-3 text-text-primary text-sm focus:border-accent-primary focus:outline-none"
+                >
+                  {GRADI.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                  <option value={GRADO_CUSTOM_VALUE}>Altro (testo libero)</option>
+                </select>
+                {modalGradoMode === GRADO_CUSTOM_VALUE && (
+                  <Input
+                    value={modalGradoCustom}
+                    onChange={(e) => setModalGradoCustom(e.target.value)}
+                    placeholder="Scrivi il grado..."
+                    required
+                    className="mt-2 bg-bg-elevated border-border-default"
+                  />
+                )}
+              </div>
             )}
 
             {activeTab !== "schede" &&

@@ -12,6 +12,7 @@ export interface BaseItem {
   totale: number;
   note: string;
   sede: Sede;
+  grado?: string;
 }
 
 export type MonitorGrado = 'A' | 'B' | 'C';
