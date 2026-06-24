@@ -401,6 +401,10 @@ function ThreadCard({
   onReply: (com: Comunicazione) => void;
 }) {
   const root = msgs[0];
+  const hasReplies = msgs.length > 1;
+  const [expanded, setExpanded] = useState(false);
+
+  const visibleMsgs = expanded ? msgs : [root];
 
   return (
     <motion.div
@@ -419,9 +423,9 @@ function ThreadCard({
         root.archiviata && "opacity-50",
       )}
     >
-      {msgs.map((msg, idx) => {
+      {visibleMsgs.map((msg, idx) => {
         const coloreMsg = COLORE_AUTORI[msg.autore] || "#525252";
-        const isLast = idx === msgs.length - 1;
+        const isLast = expanded ? idx === visibleMsgs.length - 1 : true;
         return (
           <ChatBubble
             key={msg.id}
@@ -440,6 +444,25 @@ function ThreadCard({
           />
         );
       })}
+
+      {hasReplies && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 border-t border-border-subtle/50 text-xs text-text-muted hover:text-accent-primary hover:bg-bg-hover/50 transition-colors font-medium"
+        >
+          <svg
+            width="12" height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            className={cn("transition-transform", expanded && "rotate-180")}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+          {expanded ? "Nascondi cronologia" : `Mostra cronologia (${msgs.length - 1} rispost${msgs.length - 1 === 1 ? "a" : "e"})`}
+        </button>
+      )}
     </motion.div>
   );
 }
@@ -479,36 +502,36 @@ function ChatBubble({
 
   return (
     <div className={cn(
-      "relative px-2 group",
+      "relative px-3 group",
       !isLast && "border-b border-border-subtle/50",
-      isFirst ? "pt-2" : "",
-      isLast ? "pb-2" : "",
+      isFirst ? "pt-3" : "",
+      isLast ? "pb-3" : "",
     )}>
-      <div className="flex items-start gap-1.5">
+      <div className="flex items-start gap-2">
         {/* Avatar - only show on first message or if author changes */}
         {isFirst ? (
           <div
-            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
+            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
             style={{ backgroundColor: colore + "15", color: colore, border: "1px solid " + colore + "30" }}
           >
             {inizialiAutore(msg.autore)}
           </div>
         ) : msg.autore !== rootAutore ? (
           <div
-            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
+            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
             style={{ backgroundColor: colore + "15", color: colore, border: "1px solid " + colore + "30" }}
           >
             {inizialiAutore(msg.autore)}
           </div>
         ) : (
-          <div className="w-6 flex-shrink-0 flex items-start justify-center pt-0.5">
-            <div className="w-1 h-1 rounded-full" style={{ backgroundColor: colore + "40" }} />
+          <div className="w-7 flex-shrink-0 flex items-start justify-center pt-0.5">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colore + "40" }} />
           </div>
         )}
 
         <div className="flex-1 min-w-0">
           {/* Header line */}
-          <div className="flex items-center gap-1 flex-wrap leading-none">
+          <div className="flex items-center gap-1.5 flex-wrap leading-none">
             {isFirst || msg.autore !== rootAutore ? (
               <span className="font-semibold text-xs" style={{ color: colore }}>
                 {msg.autore}
@@ -518,17 +541,17 @@ function ChatBubble({
               <>
                 {msg.destinatario.map((dest) => (
                   <span key={dest}
-                    className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium"
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded text-[9px] font-medium"
                     style={{ backgroundColor: COLORE_AUTORI[dest] + "15", color: COLORE_AUTORI[dest] }}>
-                    <User size={8} />
+                    <User size={10} />
                     {dest}
                   </span>
                 ))}
               </>
             )}
             {isFirst && msg.urgente && (
-              <span className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium bg-status-rosso/15 text-status-rosso">
-                <AlertTriangle size={8} />
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded text-[9px] font-medium bg-status-rosso/15 text-status-rosso">
+                <AlertTriangle size={10} />
                 URGENTE
               </span>
             )}
@@ -539,17 +562,17 @@ function ChatBubble({
               const inScadenza = giorni <= 3;
               return (
                 <span className={cn(
-                  "inline-flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium",
+                  "inline-flex items-center gap-0.5 px-1.5 py-0 rounded text-[9px] font-medium",
                   isScaduta ? "bg-status-rosso/15 text-status-rosso" :
                   inScadenza ? "bg-[#EAB308]/15 text-[#EAB308]" :
                   "bg-bg-hover text-text-muted",
                 )}>
-                  <Calendar size={8} />
+                  <Calendar size={10} />
                   {isScaduta ? "Scaduta" : `Entro ${format(new Date(msg.scadenza), "d MMM", { locale: it })}`}
                 </span>
               );
             })()}
-            <span className="font-caption text-text-muted ml-auto text-[9px] whitespace-nowrap">
+            <span className="font-caption text-text-muted ml-auto text-[10px] whitespace-nowrap">
               {format(new Date(msg.updatedAt), "d MMM HH:mm", { locale: it })}
             </span>
           </div>
@@ -561,7 +584,7 @@ function ChatBubble({
             </p>
           )}
           <p className={cn(
-            "text-[12px] leading-snug",
+            "text-[13px] leading-snug",
             msg.archiviata ? "text-text-muted" : "text-text-primary",
           )}>
             {msg.messaggio}
@@ -569,38 +592,38 @@ function ChatBubble({
 
           {/* Actions */}
           <div className={cn(
-            "flex items-center gap-0.5 mt-0.5",
+            "flex items-center gap-1 mt-0.5",
             isLast ? "opacity-100" : "opacity-0 group-hover:opacity-100 transition-opacity",
           )}>
             {isMia && (
               <>
                 <span onClick={() => onEdit(msg)} title="Modifica"
-                  className="cursor-pointer w-4 h-4 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                 </span>
                 <span onClick={toggleUrgente} title={msg.urgente ? "Togli urgenza" : "Segna urgente"}
-                  className="cursor-pointer w-4 h-4 flex items-center justify-center rounded hover:bg-bg-hover transition-colors"
+                  className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover transition-colors"
                   style={{ color: msg.urgente ? "#EF4444" : "#525252" }}>
-                  <AlertTriangle size={10} />
+                  <AlertTriangle size={14} />
                 </span>
               </>
             )}
             <span onClick={() => onArchivia(msg.id)} title="Archivia"
-              className="cursor-pointer w-4 h-4 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
-              <Archive size={10} />
+              className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
+              <Archive size={14} />
             </span>
             <span onClick={() => onInviaEmail(msg)} title="Invia via email"
-              className="cursor-pointer w-4 h-4 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
-              <Mail size={10} />
+              className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors">
+              <Mail size={14} />
             </span>
             <span onClick={() => onReply(msg)} title="Rispondi"
-              className="cursor-pointer w-4 h-4 flex items-center justify-center rounded hover:bg-accent-primary/20 text-text-muted hover:text-accent-primary transition-colors">
-              <Reply size={10} />
+              className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-accent-primary/20 text-text-muted hover:text-accent-primary transition-colors">
+              <Reply size={14} />
             </span>
             {isMia && (
               <span onClick={() => onElimina(msg.id)} title="Elimina"
-                className="cursor-pointer w-4 h-4 flex items-center justify-center rounded hover:bg-status-rosso/20 text-text-muted hover:text-status-rosso transition-colors">
-                <Trash2 size={10} />
+                className="cursor-pointer w-6 h-6 flex items-center justify-center rounded hover:bg-status-rosso/20 text-text-muted hover:text-status-rosso transition-colors">
+                <Trash2 size={14} />
               </span>
             )}
           </div>
