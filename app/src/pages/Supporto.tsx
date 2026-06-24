@@ -150,9 +150,9 @@ export default function Supporto() {
 
   /* CRUD handlers */
   const handleCrea = useCallback(
-    async (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null) => {
+    async (messaggio: string, urgente: boolean, destinatario: Operatore | null, scadenza: string | null, threadId: string | null) => {
       try {
-        const nuova = await createComunicazione(utenteCorrente, messaggio, urgente, destinatario, scadenza);
+        const nuova = await createComunicazione(utenteCorrente, messaggio, urgente, destinatario, scadenza, threadId);
         setComunicazioni((prev) => [nuova, ...prev]);
         setShowScrivi(false);
       } catch (err) {
@@ -181,7 +181,7 @@ export default function Supporto() {
         await handleModifica(editingCom.id, { messaggio, urgente, destinatario, scadenza });
         setEditingCom(null);
       } else {
-        await handleCrea(messaggio, urgente, destinatario, scadenza);
+        await handleCrea(messaggio, urgente, destinatario, scadenza, null);
       }
       setReplyTo(null);
     },
