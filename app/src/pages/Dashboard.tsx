@@ -80,7 +80,7 @@ function KPICard({ cat, index }: { cat: { name: string; value: number; items: nu
       onClick={() => navigate(`/inventario?categoria=${cat.category}`)}
       className="relative bg-bg-elevated rounded-xl p-6 text-left w-full border border-border-subtle transition-shadow duration-200 hover:shadow-glow"
     >
-      <p className="font-caption text-text-muted mb-3">{cat.name.toUpperCase()}</p>
+      <p className="font-caption text-text-muted mb-3">{(cat.name || cat.category).toUpperCase()}</p>
       <p className="font-data-lg text-text-primary">
         <CountUp target={cat.value} />
       </p>

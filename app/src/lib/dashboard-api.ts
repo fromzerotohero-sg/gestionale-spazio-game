@@ -89,6 +89,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
   for (const item of (items ?? []) as any[]) {
     const cat = item.categoria as string;
+    if (!cat) continue;
     const prezzo = Number(item.prezzo_unitario) || 0;
     const qty = Number(item.quantita) || 0;
     const val = prezzo * qty;
