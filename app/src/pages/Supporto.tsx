@@ -128,6 +128,30 @@ export default function Supporto() {
     return result;
   }, [comunicazioni, filtro, mostraArchiviate]);
 
+  /* Raggruppa per thread */
+  const threads = useMemo(() => {
+    // Group by threadId (or id as fallback for standalone messages)
+    const groups = new Map<string, Comunicazione[]>();
+    for (const c of filtrate) {
+      const key = c.threadId || c.id;
+      const arr = groups.get(key);
+      if (arr) arr.push(c);
+      else groups.set(key, [c]);
+    }
+    // Sort messages within each thread by createdAt ASC
+    for (const [, msgs] of groups) {
+      msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    }
+    // Sort threads by the latest message's updatedAt DESC
+    return Array.from(groups.entries())
+      .map(([threadId, msgs]) => ({ threadId, msgs }))
+      .sort((a, b) => {
+        const aLatest = a.msgs.reduce((latest, m) => m.updatedAt > latest ? m.updatedAt : latest, a.msgs[0].updatedAt);
+        const bLatest = b.msgs.reduce((latest, m) => m.updatedAt > latest ? m.updatedAt : latest, b.msgs[0].updatedAt);
+        return new Date(bLatest).getTime() - new Date(aLatest).getTime();
+      });
+  }, [filtrate]);
+
   /* Stats */
   const stats = useMemo(() => {
     const nonArchiviate = comunicazioni.filter((c) => !c.archiviata);
@@ -315,7 +339,7 @@ export default function Supporto() {
       ) : (
         <div className="space-y-4">
           <AnimatePresence>
-            {filtrate.length === 0 && (
+            {threads.length === 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -325,11 +349,11 @@ export default function Supporto() {
                 <p className="font-body">Nessuna comunicazione</p>
               </motion.div>
             )}
-            {filtrate.map((com) => (
-              <ComunicazioneCard
-                key={com.id}
-                com={com}
-                isMia={isMia(com)}
+            {threads.map(({ threadId, msgs }) => (
+              <ThreadCard
+                key={threadId}
+                msgs={msgs}
+                isMia={isMia}
                 onModifica={handleModifica}
                 onArchivia={handleArchivia}
                 onElimina={handleElimina}
@@ -366,6 +390,10 @@ function ComunicazioneCard({
   onInviaEmail,
   onEdit,
   onReply,
+  isReply,
+  threadLength,
+  expanded,
+  onToggleExpand,
 }: {
   com: Comunicazione;
   isMia: boolean;
@@ -375,6 +403,10 @@ function ComunicazioneCard({
   onInviaEmail: (com: Comunicazione) => void;
   onEdit: (com: Comunicazione) => void;
   onReply: (com: Comunicazione) => void;
+  isReply?: boolean;
+  threadLength?: number;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }) {
   const colore = COLORE_AUTORI[com.autore] || "#525252";
   const toggleUrgente = () => {
@@ -399,6 +431,7 @@ function ComunicazioneCard({
             ? "border-accent-primary/30 bg-accent-primary/[0.03]"
             : "border-border-subtle bg-bg-elevated",
         com.archiviata && "opacity-50",
+        isReply && "border-l-2 border-l-accent-primary/30 bg-bg-elevated",
       )}
     >
       <div className="flex items-start gap-3">
@@ -452,6 +485,24 @@ function ComunicazioneCard({
                 </span>
               );
             })()}
+            {!isReply && threadLength !== undefined && threadLength > 1 && (
+              <button
+                onClick={onToggleExpand}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-bg-hover text-text-muted hover:text-accent-primary transition-colors"
+              >
+                <svg
+                  width="10" height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  className={cn("transition-transform", expanded && "rotate-180")}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+                {threadLength - 1} rispost{threadLength - 1 === 1 ? "a" : "e"}
+              </button>
+            )}
             <span className="font-caption text-text-muted ml-auto text-xs flex items-center gap-1">
               <Clock size={10} />
               {format(new Date(com.updatedAt), "d MMM HH:mm", { locale: it })}
@@ -502,6 +553,96 @@ function ComunicazioneCard({
           )}
         </div>
       </div>
+    </motion.div>
+  );
+}
+
+/* ------------ THREAD CARD ------------ */
+
+function ThreadCard({
+  msgs,
+  isMia,
+  onModifica,
+  onArchivia,
+  onElimina,
+  onInviaEmail,
+  onEdit,
+  onReply,
+}: {
+  msgs: Comunicazione[];
+  isMia: (c: Comunicazione) => boolean;
+  onModifica: (id: string, patch: { messaggio?: string; urgente?: boolean; scadenza?: string | null; destinatario?: Operatore | null }) => void;
+  onArchivia: (id: string) => void;
+  onElimina: (id: string) => void;
+  onInviaEmail: (com: Comunicazione) => void;
+  onEdit: (com: Comunicazione) => void;
+  onReply: (com: Comunicazione) => void;
+}) {
+  const root = msgs[0];
+  const replies = msgs.slice(1);
+  const [expanded, setExpanded] = useState(replies.length > 0);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.25, ease: easeSmooth }}
+    >
+      {/* Root message */}
+      <ComunicazioneCard
+        com={root}
+        isMia={isMia(root)}
+        onModifica={onModifica}
+        onArchivia={onArchivia}
+        onElimina={onElimina}
+        onInviaEmail={onInviaEmail}
+        onEdit={onEdit}
+        onReply={onReply}
+        threadLength={msgs.length}
+        expanded={expanded}
+        onToggleExpand={() => setExpanded(!expanded)}
+      />
+
+      {/* Replies */}
+      <AnimatePresence>
+        {expanded && replies.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: easeSmooth }}
+            className="ml-9 pl-4 border-l-2 border-border-subtle space-y-2 mt-2"
+          >
+            {replies.map((msg) => (
+              <ComunicazioneCard
+                key={msg.id}
+                com={msg}
+                isMia={isMia(msg)}
+                onModifica={onModifica}
+                onArchivia={onArchivia}
+                onElimina={onElimina}
+                onInviaEmail={onInviaEmail}
+                onEdit={onEdit}
+                onReply={onReply}
+                isReply
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick reply button when collapsed with replies */}
+      {!expanded && replies.length > 0 && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="ml-14 mt-1 flex items-center gap-1 text-xs text-text-muted hover:text-accent-primary transition-colors"
+        >
+          <Reply size={11} />
+          Mostra {replies.length} rispost{replies.length === 1 ? "a" : "e"}
+        </button>
+      )}
     </motion.div>
   );
 }
