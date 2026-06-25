@@ -34,9 +34,9 @@ export default function Navbar({ collapsed, onToggleCollapse }: NavbarProps) {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 72 : 260 }}
+      animate={{ width: collapsed ? 72 : 260, x: 0 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }}
-      className="h-screen bg-bg-elevated border-r border-border-subtle flex flex-col fixed left-0 top-0 z-50"
+      className="h-screen bg-bg-elevated border-r border-border-subtle flex flex-col fixed left-0 top-0 z-50 max-lg:shadow-xl"
     >
       {/* Brand Logo */}
       <div className="h-16 flex items-center px-4 border-b border-border-subtle">

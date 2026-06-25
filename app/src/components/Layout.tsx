@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Bell, X, AlertTriangle, Clock, User, Calendar } from 'lucide-react';
+import { Search, Bell, X, AlertTriangle, Clock, User, Calendar, Menu } from 'lucide-react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import {
@@ -44,7 +44,8 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [comunicazioni, setComunicazioni] = useState<Comunicazione[]>([]);
   const [notificheAperte, setNotificheAperte] = useState(false);
   const location = useLocation();
@@ -69,6 +70,13 @@ export default function Layout({ children }: LayoutProps) {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [notificheAperte]);
+
+  /* Traccia larghezza schermo per mobile */
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   /* Re-read operatore da localStorage ad ogni cambio pagina */
   const [utente, setUtente] = useState(getUtenteCorrente);
@@ -155,16 +163,24 @@ export default function Layout({ children }: LayoutProps) {
 
       <motion.div
         initial={false}
-        animate={{ marginLeft: collapsed ? 72 : 260 }}
+        animate={{ marginLeft: collapsed ? (isMobile ? 0 : 72) : 260 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }}
         className="flex-1 flex flex-col min-w-0"
       >
         {/* Top Bar */}
-        <header className="sticky top-0 z-40 h-16 bg-bg-elevated border-b border-border-subtle flex items-center justify-between px-8">
-          {/* Left: Breadcrumb + Title */}
-          <div>
-            <p className="font-caption text-text-muted">{routeInfo.breadcrumb}</p>
-            <h1 className="font-heading-1 text-text-primary">{routeInfo.title}</h1>
+        <header className="sticky top-0 z-40 h-16 bg-bg-elevated border-b border-border-subtle flex items-center justify-between px-4 md:px-8">
+          {/* Left: Hamburger + Breadcrumb */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-bg-hover transition-colors text-text-secondary"
+            >
+              <Menu size={20} />
+            </button>
+            <div>
+              <p className="font-caption text-text-muted">{routeInfo.breadcrumb}</p>
+              <h1 className="font-heading-1 text-text-primary">{routeInfo.title}</h1>
+            </div>
           </div>
 
           {/* Right: Search + Notifiche */}
@@ -253,6 +269,14 @@ export default function Layout({ children }: LayoutProps) {
 
         <Footer />
       </motion.div>
+
+      {/* Overlay mobile quando sidebar e' aperta */}
+      {!collapsed && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setCollapsed(true)}
+        />
+      )}
     </div>
   );
 }
