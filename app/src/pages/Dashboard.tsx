@@ -20,6 +20,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { fetchDashboardData } from '@/lib/dashboard-api';
+import { useInventoryItems } from '@/hooks/use-inventory';
 
 
 const easeSmooth = [0.16, 1, 0.3, 1] as [number, number, number, number];
@@ -440,17 +441,56 @@ function QuickActions() {
 /* ───────────────────── MAIN DASHBOARD ───────────────────── */
 
 export default function Dashboard() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["dashboard"],
+  const { data: items = [] } = useInventoryItems();
+  const { data: dashData, isLoading, isError } = useQuery({
+    queryKey: ["dashboard-alerts"],
     queryFn: fetchDashboardData,
     refetchInterval: 60000,
   });
 
-  const categories = data?.categories ?? [];
-  const totalValue = data?.totalValue ?? 0;
-  const totalItems = data?.totalItems ?? 0;
-  const alerts = data?.alerts ?? [];
-  const activities = data?.activities ?? [];
+  // Compute inventory stats from real items
+  const catMap = new Map<string, { value: number; items: number; color: string; name: string }>();
+  let totalValue = 0;
+  let totalItems = 0;
+
+  const CAT_COLORS: Record<string, string> = {
+    schede: "#D0FF59", cabinet: "#22C55E", cambiamonete: "#3B82F6",
+    accessori: "#8B5CF6", monitor: "#F97316",
+  };
+  const CAT_NAMES: Record<string, string> = {
+    schede: "Schede", cabinet: "Cabinet", cambiamonete: "Cambia Monete",
+    accessori: "Accessori", monitor: "Monitor",
+  };
+
+  for (const item of items as any[]) {
+    const cat = item.categoria as string;
+    if (!cat) continue;
+    const prezzo = Number(item.prezzoUnitario ?? item.prezzo_unitario) || 0;
+    const qty = Number(item.quantita) || 0;
+    const val = prezzo * qty;
+    totalValue += val;
+    totalItems += qty;
+
+    const existing = catMap.get(cat);
+    if (existing) {
+      existing.value += val;
+      existing.items += qty;
+    } else {
+      catMap.set(cat, {
+        value: val,
+        items: qty,
+        color: CAT_COLORS[cat] || "#525252",
+        name: CAT_NAMES[cat] || cat,
+      });
+    }
+  }
+
+  const categories = Array.from(catMap.entries())
+    .map(([category, data]) => ({ ...data, category }))
+    .sort((a, b) => b.value - a.value);
+
+  const alerts = dashData?.alerts ?? [];
+  const activities = dashData?.activities ?? [];
 
   return (
     <div className="max-w-[1440px] mx-auto">

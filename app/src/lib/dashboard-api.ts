@@ -33,22 +33,6 @@ export interface DashboardData {
   alerts: DashboardAlert[];
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  schede: "#D0FF59",
-  cabinet: "#22C55E",
-  cambiamonete: "#3B82F6",
-  accessori: "#8B5CF6",
-  monitor: "#F97316",
-};
-
-const CATEGORY_NAMES: Record<string, string> = {
-  schede: "Schede",
-  cabinet: "Cabinet",
-  cambiamonete: "Cambia Monete",
-  accessori: "Accessori",
-  monitor: "Monitor",
-};
-
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -75,48 +59,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
   const supabase = getSupabase();
 
-  // 1. Fetch all inventory items for stats
-  const { data: items, error: itemsError } = await (supabase
-    .from("inventory_items")
-    .select("*") as any);
-
-  if (itemsError) throw itemsError;
-
-  // Compute category stats
-  const catMap = new Map<string, { value: number; items: number }>();
-  let totalValue = 0;
-  let totalItems = 0;
-
-  for (const item of (items ?? []) as any[]) {
-    const cat = item.categoria as string;
-    if (!cat) continue;
-    const prezzo = Number(item.prezzo_unitario) || 0;
-    const qty = Number(item.quantita) || 0;
-    const val = prezzo * qty;
-
-    totalValue += val;
-    totalItems += qty;
-
-    const existing = catMap.get(cat);
-    if (existing) {
-      existing.value += val;
-      existing.items += qty;
-    } else {
-      catMap.set(cat, { value: val, items: qty });
-    }
-  }
-
-  const categories: DashboardCategoryStat[] = Array.from(catMap.entries())
-    .map(([cat, data]) => ({
-      name: CATEGORY_NAMES[cat] || cat,
-      category: cat,
-      value: Math.round(data.value * 100) / 100,
-      items: data.items,
-      color: CATEGORY_COLORS[cat] || "#525252",
-    }))
-    .sort((a, b) => b.value - a.value);
-
-  // 2. Fetch recent activity
+  // 1. Fetch recent activity
   const { data: activityData, error: actError } = await (supabase
     .from("inventory_activity")
     .select("*")
@@ -134,25 +77,9 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     type: ACTION_TYPE[a.action] || "blu",
   }));
 
-  // 3. Generate alerts
+  // 2. Generate alerts from urgent comunicazioni
   const alerts: DashboardAlert[] = [];
 
-  // Low stock (less than 5 units)
-  const lowStockItems = (items ?? [])
-    .filter((i: any) => Number(i.quantita) > 0 && Number(i.quantita) <= 5)
-    .slice(0, 3);
-
-  for (const item of lowStockItems) {
-    alerts.push({
-      id: `low-${item.id || Math.random()}`,
-      severity: "rosso",
-      title: `Scorte basse — ${item.nome}`,
-      description: `Solo ${item.quantita} unità rimaste in magazzino`,
-      time: "adesso",
-    });
-  }
-
-  // Urgent comunicazioni
   const { data: urgenti } = await (supabase
     .from("comunicazioni")
     .select("*")
@@ -173,9 +100,9 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   }
 
   return {
-    totalValue,
-    totalItems,
-    categories,
+    totalValue: 0,
+    totalItems: 0,
+    categories: [],
     activities,
     alerts,
   };
